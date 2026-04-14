@@ -1,0 +1,65 @@
+<!-- e-RUAI — n8n Email Template: User Alert (Booking Submitted / Pending)
+
+How to use:
+- Copy/paste this entire HTML into your n8n Email node.
+- This template expects payload fields under: $json.body.*
+  userName, roomName, date, time, specialRequest
+- Special Request block ALWAYS shows:
+  - prints request text when present
+  - prints '-' when empty/missing
+-->
+
+<div style="margin:0;padding:0;background:#f7f7f7;">
+  <div style="max-width:600px;margin:0 auto;padding:24px 12px;">
+    <div style="background:#ffffff;border:1px solid #e5e5e5;border-radius:12px;padding:20px;font-family:Arial,Helvetica,sans-serif;color:#111827;line-height:1.5;">
+
+      <h3 style="margin:0 0 12px 0;font-size:18px;">
+        Salam {{ $json.body.userName }},
+      </h3>
+
+      <p style="margin:0 0 14px 0;font-size:14px;">
+        Tempahan bilik anda telah <strong>DITERIMA</strong> dan kini berstatus <strong>PENDING</strong>.
+      </p>
+
+      <div style="background:#f3f4f6;padding:12px 14px;border-radius:10px;border:1px solid #e5e7eb;margin:0 0 14px 0;font-size:14px;">
+        <div style="font-weight:700;margin:0 0 8px 0;">Butiran Tempahan</div>
+        <div>
+          <div><strong>Bilik:</strong> {{ $json.body.roomName }}</div>
+          <div><strong>Tarikh:</strong> {{ $json.body.date }}</div>
+          <div><strong>Masa:</strong> {{ $json.body.time }}</div>
+
+          <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #d1d5db;">
+            <div><strong>Special Request (Info Only):</strong></div>
+            <div style="white-space:pre-line;">
+              {{ (() => {
+                const sr =
+                  ($json?.body?.specialRequest) ??
+                  ($json?.body?.body?.specialRequest) ??
+                  ($json?.specialRequest) ??
+                  '';
+                const text = String(sr || '').trim();
+                return text || '-';
+              })() }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p style="margin:0 0 16px 0;font-size:14px;">
+        Anda akan menerima emel pengesahan kedua sebaik sahaja Admin meluluskan permohonan ini.
+      </p>
+
+      <p style="margin:0 0 2px 0;font-size:14px;">
+        <a href="https://eruai.sarawaktourism.app" style="color:#7c2d12;text-decoration:underline;">Buka e‑RUAI</a>
+      </p>
+
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:18px 0;">
+
+      <div style="font-size:12px;color:#6b7280;">
+        e‑RUAI | Owned &amp; maintained by Mohd Hisyamudin —
+        <a href="https://eruai.sarawaktourism.app" style="color:#6b7280;text-decoration:underline;">https://eruai.sarawaktourism.app</a>
+      </div>
+
+    </div>
+  </div>
+</div>

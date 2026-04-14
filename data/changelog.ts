@@ -1,0 +1,62 @@
+export const APP_VERSION = '0.9.505';
+
+export const changelog = [
+  {
+    version: '3.0 (Current - e-RUAI Web App)',
+    date: 'Jan 2026 - Present',
+    changes: [
+      'Roadmap (Planned): All-Year STB Plan module under System Evolution — establish centralized annual planning, tracking, and decision visibility in eRuai. Calendar entries will be governed in coordination with the Strategic & Transformation Unit (STU) for alignment and execution discipline.',
+      'v0.9.505 (30 Mar 2026): Admin visibility — added Special Request (SR) indicator in Admin Console (spreadsheet + list + details), plus include specialRequest in booking webhook payload for email templates (info-only; no approval workflow).',
+      'v0.9.504 (26 Mar 2026): Admin Console updates — added compact Refreshment (RF) column in list + spreadsheet views (Ø RF / ☕ T&C / 🍽 R+T&C, positioned before Booked By), and renamed print feature labels from "POF" to "Catering Attachment".',
+      'v0.9.503 (19 Mar 2026): User Guide overhaul — moved guide inside app (/user-guide), replaced Bitly link, added TOC + print + auto-highlight on scroll, fixed HashRouter section-jump redirect, and rewrote content for USER/ADMIN only.',
+      'v0.9.502 (11 Mar 2026): Mobile UI refresh — Room Availability month view + 2-week matrix now iPhone-friendly (edge-to-edge), cleaner cells, balanced controls.',
+      'v0.9.501 (07 Mar 2026): Performance — reduce Firestore reads (auto-refresh 5s→5min w/ tab-visibility guard; notification + sidebar badge polling reduced).',
+      'v0.9.500 (07 Mar 2026): Auto-combine rooms (Rajang/Santubong/Niah) + privacy + cascades — capacity overflow, multi-room locking, "Reserved (Pending Approval)" masking, approve/reject/cancel cascades, MyBookings compact badges.',
+      'v0.9.403 (02 Mar 2026): Booking policy — standard users can only create bookings within the next 90 days (Admin override).',
+      'v0.9.402 (02 Mar 2026): Admin print — meeting title forced to UPPERCASE for signage consistency.',
+      'v0.9.401 (25 Feb 2026): Admin cancel fix + room images — fix Cancel Meeting crash; stabilize room images via imageUrl (no random placeholders).',
+      'v0.9.400 (24 Feb 2026): Email reminders (7:30am) — daily summary for APPROVED meetings today (timezone-correct), CC admin; exclude same-day-created bookings; group by user.',
+      'v0.9.322 (23 Feb 2026): Reliability — support badge polling; status webhook completeness (reject/cancel payload includes time/purpose/reason); auth profile auto-heal to reduce "User" placeholders.',
+      'v0.9.321 (22 Feb 2026): Booking form UX — responsive date/time selectors (iOS-friendly dropdowns), placeholders + end-time auto-suggest, System Evolution changelog merge UX.',
+      'v0.9.320 (21 Feb 2026): Cancellations + reasons — user self-cancel + admin reject/cancel with required reason; show reasons in UI; strike-through in tables; mobile Safari blank-screen hotfix; clash guard ignores cancelled.',
+      'v0.9.319 (20 Feb 2026): Admin Console — pending request badge count (status=PENDING) so approvals are visible to all admins.',
+      'v0.9.318 (19 Feb 2026): Sign-up false failure fix — Auth creation = success; Firestore profile write non-blocking (handles blocked extensions).',
+      'v0.9.317 (19 Feb 2026): Sign-up error clarity — clearer message for blocked Firebase; advise disable adblock/privacy or use Incognito.',
+      'v0.9.316 (19 Feb 2026): Sign-up UX — show success then return to login (pending lock); sign-out after register; clearer blocked-Firebase guidance.',
+      'v0.9.315 (19 Feb 2026): Booking crash fix — resolve submit runtime error (logger undefined) by importing shared logger in BookingForm.',
+      'v0.9.314 (19 Feb 2026): Help & Support — add sidebar link to Support Center + unread ticket badge.',
+      'v0.9.313 (18 Feb 2026): Admin analytics + branding — hide analytics by default; slide-down reveal; 3-column KPI cards; add favicon; add lightweight toggle logging.',
+      'v0.9.312 (17 Feb 2026): Maintenance + workspace recovery — consolidate release notes; migrate to clean workspace; adopt Node 22 LTS; remove global logger shim.',
+      'v0.9.311 (14 Feb 2026): System Evolution mobile fix — resolve blank screen; fix lucide Map shadowing; close mobile sidebar overlay on navigation.',
+      'v0.9.310 (13 Feb 2026): Profile update fix — auto-create missing /users/{uid}; rules for safe self profile updates; refresh policy fixes; add User Guide link.',
+      'v0.9.309 (12 Feb 2026): Sign-up email reminder — prompt @sarawaktourism.com; allow non-official email (subject to admin approval).',
+      'v0.9.308 (12 Feb 2026): Forgot password — add password reset link (Firebase Auth email reset).',
+      'v0.9.307 (12 Feb 2026): Password change — allow secure password update from Profile (with re-auth).',
+      'v0.9.306 (12 Feb 2026): Sign-up division selection — enforce Unit dropdown (no free-text); update rules so Units list loads on sign-up.',
+      'v0.9.305 (10 Feb 2026): Logging cleanup — route debug/info to DEV-only logger; keep warn/error for diagnostics.',
+      'v0.9.304 (10 Feb 2026): User avatars — deterministic initials avatars (2-letter) w/ color; remove blank avatars.',
+      'v0.9.303 (10 Feb 2026): Mobile navigation — ensure Sign Out is visible/reachable in mobile sidebar.',
+      'v0.9.302 (10 Feb 2026): Production hardening + copy — remove demo CTAs; refine landing copy; update RUAI expansion wording.',
+      'v0.9.301 (03 Feb 2026): UI polish + mobile UX — hamburger sidebar; rename "Meeting Title"; add "No. of Pax" info in print.',
+      'v0.9.3 (02 Feb 2026): User onboarding overhaul — Public Sign-Up; auto-avatars; "Pending" account lock; Admin leader approval system.',
+      'v0.9.2 (01 Feb 2026): Dashboard intelligence — analytics (room popularity + dept breakdown); matrix/spreadsheet view; fix user name mapping.',
+      'v0.9.1 (30 Jan 2026): Support ticketing system — user issue reporting module; admin tracking (Open/In-Progress/Resolved).',
+      'v0.9.0 (05 Jan 2026): Branding + security + git — STB maroon theme; security rules hardening; git integration.',
+      'v0.5.0 (29 Jan 2025): Integration with n8n for automated status emails.',
+      'v0.1.0 (09 Jan 2025): Full migration to React + Firebase (Real-time DB).'
+    ]
+  },
+  {
+    version: '2.0 (Legacy)',
+    date: 'Oct-Dec 2025',
+    changes: ['Automasi menggunakan Google Sheets & Google Apps Script (GAS).'],
+  },
+  {
+    version: '1.0 (Legacy)',
+    date: '2021-2025',
+    changes: [
+      'Proses semi-manual menggunakan borang PDF dan emel manual.',
+      'Penyimpanan rekod secara fizikal & google sheet asas.',
+    ],
+  },
+];

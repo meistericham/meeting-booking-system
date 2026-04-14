@@ -1,0 +1,121 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Helper Functions ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSuperAdminEmail() {
+      return request.auth.token.email.lower() == 'hisyamudin@sarawaktourism.com';
+    }
+
+    // Checks if a doc exists by UID or Email and has admin roles
+    function hasAdminRights() {
+      let uidDoc = /databases/$(database)/documents/users/$(request.auth.uid);
+      let emailDoc = /databases/$(database)/documents/users/$(request.auth.token.email);
+
+      return isSignedIn() && (
+        isSuperAdminEmail() ||
+        (exists(uidDoc) && get(uidDoc).data.role.upper() in ['ADMIN', 'SUPER_ADMIN']) ||
+        (exists(emailDoc) && get(emailDoc).data.role.upper() in ['ADMIN', 'SUPER_ADMIN']) ||
+        (exists(uidDoc) && get(uidDoc).data.canApproveUsers == true) ||
+        (exists(emailDoc) && get(emailDoc).data.canApproveUsers == true)
+      );
+    }
+
+    // Fetches role from whichever doc exists
+    function myRole() {
+      let uidDoc = /databases/$(database)/documents/users/$(request.auth.uid);
+      let emailDoc = /databases/$(database)/documents/users/$(request.auth.token.email);
+      return exists(uidDoc) ? get(uidDoc).data.role : (exists(emailDoc) ? get(emailDoc).data.role : null);
+    }
+
+    // --- Users Collection ---
+    match /users/{userId} {
+      allow read: if isSignedIn();
+
+      // Create: Support both UID or Email as the document ID
+      allow create: if isSignedIn()
+        && (request.auth.uid == userId || request.auth.token.email == userId)
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.email == request.auth.token.email;
+
+      // Update: Fix for Username/Profile updates
+      allow update: if isSignedIn() && (
+        hasAdminRights() ||
+        (
+          // User is updating their own doc (either keyed by UID or Email)
+          (request.auth.uid == userId || request.auth.token.email == userId) &&
+          // Ensure they don't change their own permissions or identity
+          request.resource.data.role == resource.data.role &&
+          request.resource.data.email == resource.data.email &&
+          request.resource.data.uid == resource.data.uid &&
+          request.resource.data.canApproveUsers == resource.data.canApproveUsers &&
+          // Allow changes to name, displayName, avatar, and updatedAt
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'name', 'displayName', 'avatar', 'updatedAt', 'avatarUrl'
+          ])
+        )
+      );
+
+      allow delete: if hasAdminRights();
+    }
+
+    // --- Notifications ---
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && (
+        resource.data.recipientRole == 'all' ||
+        resource.data.recipientRole == myRole() ||
+        (hasAdminRights() && resource.data.recipientRole.lower() == 'admin') ||
+        resource.data.targetUserId == request.auth.uid
+      );
+
+      allow create: if isSignedIn() && (
+        hasAdminRights() ||
+        (request.resource.data.recipientRole.lower() == 'admin' && request.resource.data.createdBy == request.auth.uid)
+      );
+
+      allow update: if isSignedIn() && (
+        hasAdminRights() ||
+        (resource.data.targetUserId == request.auth.uid && request.resource.data.isRead == true)
+      );
+
+      allow delete: if hasAdminRights();
+    }
+
+    // --- Rooms, Units, Bookings & Tickets ---
+    match /rooms/{roomId} {
+      allow read: if isSignedIn();
+      allow write: if hasAdminRights();
+    }
+
+    match /units/{unitId} {
+      allow read: if true;
+      allow write: if hasAdminRights();
+    }
+
+    match /bookings/{bookingId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && (request.resource.data.userId == request.auth.uid || hasAdminRights());
+      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || hasAdminRights());
+      allow delete: if (isSignedIn() && resource.data.userId == request.auth.uid) || hasAdminRights();
+    }
+
+    match /tickets/{ticketId} {
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow read, update: if isSignedIn() && (resource.data.uid == request.auth.uid || hasAdminRights());
+    }
+
+    // --- App Settings (for Update Notice popup config) ---
+    match /app_settings/{docId} {
+      // Signed-in users can read (needed for popup display target logic)
+      allow read: if isSignedIn();
+
+      // Only admin/super admin can write
+      // Restrict to update_notice doc to avoid broad writes
+      allow create, update, delete: if hasAdminRights() && docId == 'update_notice';
+    }
+  }
+}

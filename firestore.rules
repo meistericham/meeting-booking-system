@@ -1,0 +1,163 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function uidDocPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function emailDocPath() {
+      return /databases/$(database)/documents/users/$(request.auth.token.email);
+    }
+
+    function userDocExists() {
+      return isSignedIn() && (exists(uidDocPath()) || exists(emailDocPath()));
+    }
+
+    function getUserData() {
+      return exists(uidDocPath())
+        ? get(uidDocPath()).data
+        : (exists(emailDocPath()) ? get(emailDocPath()).data : null);
+    }
+
+    function isSuperAdminEmail() {
+      return isSignedIn() && request.auth.token.email.lower() == 'hisyamudin@sarawaktourism.com';
+    }
+    
+    function isAdmin() {
+      return isSignedIn() && (
+        isSuperAdminEmail()
+        || (userDocExists() && (getUserData().role == 'admin' || getUserData().role == 'super_admin'))
+        || (userDocExists() && getUserData().canApproveUsers == true)
+      );
+    }
+    
+    function isSuperAdmin() {
+      return isSignedIn() && (isSuperAdminEmail() || (userDocExists() && getUserData().role == 'super_admin'));
+    }
+
+    // Users collection: Users can read/update their own profile; Admins can read all
+    // NOTE: This project currently has legacy user docs keyed by email AND newer docs keyed by UID.
+    // These rules support both to avoid "Missing or insufficient permissions" during profile updates.
+    match /users/{userId} {
+      // Read own doc (UID-keyed or email-keyed) or admins
+      allow read: if isSignedIn() && (
+        request.auth.uid == userId
+        || request.auth.token.email == userId
+        || isAdmin()
+      );
+
+      // Profile self-service (display name + avatar): allow a signed-in user to create their own doc
+      // (either UID-keyed or email-keyed), but only with safe keys.
+      allow create: if isSignedIn()
+        && (request.auth.uid == userId || request.auth.token.email == userId)
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.role == 'user'
+        && request.resource.data.keys().hasOnly(['uid','email','role','displayName','avatar','updatedAt','createdAt']);
+
+      // Self-service update: allow changing ONLY displayName/avatar/updatedAt on own doc.
+      allow update: if isSignedIn()
+        && (
+          request.auth.uid == userId
+          || request.auth.token.email == userId
+        )
+        && resource.data.uid == request.auth.uid
+        && resource.data.role == 'user'
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName','avatar','updatedAt']);
+
+      // Only Super Admin can change roles or manage other users.
+      allow write: if isSuperAdmin();
+    }
+
+    // Units (Departments/Divisions): allow public read so Sign Up can show choices
+    match /units/{unitId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    // Rooms: Signed-in read, Super Admin write
+    match /rooms/{roomId} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
+    }
+
+    // Notifications
+    match /notifications/{notificationId} {
+      // Read only notifications meant for you/your role.
+      allow read: if isSignedIn()
+        && (
+          resource.data.recipientRole == 'all'
+          || resource.data.recipientRole == getUserData().role
+          || (isAdmin() && resource.data.recipientRole == 'admin')
+        )
+        && (!('targetUserId' in resource.data) || resource.data.targetUserId == null || resource.data.targetUserId == request.auth.uid);
+
+      // Create notifications:
+      // - Admins can create any
+      // - Standard users can only create admin notifications (e.g., new booking request) and must set createdBy=uid.
+      allow create: if isSignedIn() && (
+        isAdmin()
+        || (
+          request.resource.data.recipientRole == 'admin'
+          && (!('targetUserId' in request.resource.data) || request.resource.data.targetUserId == null)
+          && request.resource.data.createdBy == request.auth.uid
+        )
+      );
+
+      // Update:
+      // - Admins can update any
+      // - Users can only mark their own targeted notifications as read (isRead only)
+      allow update: if isSignedIn() && (
+        isAdmin()
+        || (
+          resource.data.targetUserId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead'])
+        )
+      );
+
+      // Delete: admins only
+      allow delete: if isAdmin();
+    }
+
+    // App Settings (e.g., update notice popup config)
+    match /app_settings/{docId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin() && docId == 'update_notice';
+    }
+
+    // Bookings
+    match /bookings/{bookingId} {
+      // Anyone can read to check availability (could be restricted to 'approved' status for privacy)
+      allow read: if isSignedIn();
+      
+      // Create:
+      // - Admin/Super Admin can create bookings (e.g., maintenance blocks)
+      // - Standard users can create only PENDING bookings and only within 90 days from now
+      allow create: if isSignedIn() && (
+        isAdmin()
+        || (
+          getUserData().role == 'user'
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.status == 'pending'
+          && request.resource.data.startTime <= request.time + duration.value(90, 'd')
+        )
+      );
+        
+      // Update: Users can cancel (if implemented), Admins can approve/reject
+      allow update: if (isSignedIn() && request.auth.uid == resource.data.userId) // User updates (e.g. cancel)
+                    || isAdmin(); // Admin updates status
+                    
+      // Delete: Super Admin only
+      allow delete: if isSuperAdmin();
+    }
+  }
+}

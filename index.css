@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CSS Variables awak (dipindahkan dari HTML style tag) */
+@layer base {
+  :root {
+    --color-bg-app: #f9fafb;       /* gray-50 */
+    --color-bg-surface: #ffffff;   /* white */
+    --color-text-main: #111827;    /* gray-900 */
+    --color-text-muted: #6b7280;   /* gray-500 */
+    --color-border: #e5e7eb;       /* gray-200 */
+  }
+  
+  .dark {
+    --color-bg-app: #030712;       /* gray-950 */
+    --color-bg-surface: #111827;   /* gray-900 */
+    --color-text-main: #f3f4f6;    /* gray-100 */
+    --color-text-muted: #9ca3af;   /* gray-400 */
+    --color-border: #1f2937;       /* gray-800 */
+  }
+
+  body {
+    @apply font-sans; /* Gantikan font-family manual */
+  }
+
+  /* iOS Safari: prevent automatic text resizing that can break layouts */
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+/* iOS-only helper: safe-area padding for bottom (e.g., notches / home indicator) */
+@supports (-webkit-touch-callout: none) {
+  .ios-safe-bottom {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+  }
+
+  /* Prevent iOS zoom-on-focus for small font inputs by ensuring >=16px */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+
+/* Print styles */
+@media print {
+  @page { size: landscape; margin: 1cm; }
+  body { background-color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
