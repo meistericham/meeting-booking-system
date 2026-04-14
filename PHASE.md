@@ -1,33 +1,35 @@
-# PHASE.md — Meeting Booking System (MVP)
+# PHASE.md — Meeting / Venue Booking System (MVP)
 
-## Phase 0 — Setup (today)
-- Duplicate from e-RUAI baseline
-- Rename and clean project identity
-- Define MVP scope and success criteria
-- Confirm stack direction:
-  - Option A: Vite/React (fastest reuse)
-  - Option B: Next.js App Router + Supabase (recommended if must be Next.js)
+## Phase 0 — Setup
+- [x] Duplicate baseline from e-RUAI
+- [x] Create repo-specific docs: `AGENTS.md`, `PHASE.md`
+- [ ] Decide stack (strict requirement vs speed)
+  - Option A: Vite/React (max reuse)
+  - Option B: Next.js (App Router) + Supabase (recommended if must be Next.js/Supabase)
+- [ ] Remove non-MVP modules (super admin, printing, archive, legacy docs) once stack is confirmed
 
 ## Phase 1 — MVP (public booking flow)
-- Landing page (responsive)
-- Venue details page (key info)
-- Booking request form
-  - Date + time slot selection
-  - Validation (required fields, valid slot, prevent overlaps)
-- Booking confirmation page
+- [ ] Responsive landing page for the venue
+- [ ] Venue details page (key information)
+- [ ] Booking request form
+  - [ ] Date selection
+  - [ ] Time slot selection
+  - [ ] Form validation (required fields, correct formats)
+  - [ ] Prevent invalid/overlapping slot requests
+- [ ] Booking confirmation page
 
 ## Phase 2 — MVP (admin)
-- Admin login
-- Admin dashboard
-  - View bookings
-  - Update status: pending / approved / rejected
-  - Basic filters + search
+- [ ] Admin login page
+- [ ] Admin dashboard to manage bookings
+  - [ ] List bookings
+  - [ ] Update status: pending / approved / rejected
+  - [ ] Basic filters + search
 
 ## Phase 3 — Polish
-- UX cleanup
-- Empty states + loading + error handling
-- Mobile-first QA
-- Basic analytics (optional)
+- [ ] Clean UX (spacing, typography, states)
+- [ ] Empty states + loading + error handling
+- [ ] Mobile-first QA
 
 ## Notes
-- No n8n. Any notifications (email/WA) will be done via in-app API routes or later integration.
+- No payment integration.
+- No n8n.
