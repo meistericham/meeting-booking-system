@@ -23,6 +23,9 @@ Focus: booking flow, responsiveness, usability, and overall polish.
 9. Proper form validation
 10. Clean, user-friendly UX
 
+## Phases / progress tracking
+Refer to `PHASE.md` for phase-by-phase progress and checklists.
+
 ## MVP scope
 - Public:
   - Landing
