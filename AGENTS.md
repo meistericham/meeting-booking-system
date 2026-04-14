@@ -37,9 +37,13 @@ Focus: booking flow, responsiveness, usability, and overall polish.
   - Required fields
   - Prevent invalid/overlapping slots
 
-## Tech direction
-- Preferred (if requirement is strict): Next.js (App Router) + Supabase.
-- If speed is the only priority: keep Vite/React and reuse most code, with Firebase/Firestore or Supabase swap.
+## Tech direction (LOCKED for MVP)
+- Vite + React + Tailwind (reuse e-RUAI baseline)
+- Firebase (Auth + Firestore) on free tier
+- No n8n
+- Optional email/notification module using user-provided SMTP credentials
+  - SMTP creds must be configured by the deployer via env vars (never in frontend)
+  - Default: email disabled (feature flag)
 
 ## Working style
 - Keep components small and reusable.

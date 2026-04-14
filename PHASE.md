@@ -3,10 +3,9 @@
 ## Phase 0 — Setup
 - [x] Duplicate baseline from e-RUAI
 - [x] Create repo-specific docs: `AGENTS.md`, `PHASE.md`
-- [ ] Decide stack (strict requirement vs speed)
-  - Option A: Vite/React (max reuse)
-  - Option B: Next.js (App Router) + Supabase (recommended if must be Next.js/Supabase)
-- [ ] Remove non-MVP modules (super admin, printing, archive, legacy docs) once stack is confirmed
+- [x] Decide stack
+  - Locked: Vite/React (max reuse) + Firebase free tier
+- [ ] Remove non-MVP modules (super admin, printing, archive, legacy docs)
 
 ## Phase 1 — MVP (public booking flow)
 - [ ] Responsive landing page for the venue
