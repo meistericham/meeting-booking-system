@@ -1,117 +1,141 @@
-# e-Ruai: Resource Unified Access Interface 🚀
+# Meeting Booking System
 
-**e-Ruai** is a centralized resource management and booking system developed for the **Sarawak Tourism Board (STB)**. It serves as a unified platform for staff to book meeting rooms, units, and manage internal queries, replacing manual processes with a modern SaaS-style web application.
+Responsive hall and venue booking web app built with Vite, React, Tailwind, Firebase Auth, and Firestore.
 
-![Version](https://img.shields.io/badge/version-v0.9.321-blue.svg)
-![Status](https://img.shields.io/badge/status-Beta-orange.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Stack](https://img.shields.io/badge/tech-React%20%7C%20Firebase%20%7C%20Tailwind-green.svg)
+This repo now targets a focused MVP:
+- Public users can browse venues without logging in
+- Invited users must sign in before booking
+- Admins manage booking approvals and invite-only onboarding
+- Booking statuses are `pending`, `approved`, `rejected`, and `cancelled`
+- Optional email notifications run through a Vercel serverless function with SMTP env vars
 
-**License:** MIT — see [`LICENSE`](./LICENSE)
+## Stack
+- React 19 + TypeScript
+- Vite
+- Tailwind CSS
+- Firebase Auth
+- Firestore
+- Vercel serverless API for SMTP email
 
----
+## Current MVP Flow
+- Public:
+  - Landing page
+  - Venue details
+- User:
+  - Invite-only signup
+  - Login
+  - Availability-first booking flow
+  - User dashboard with booking history
+  - Self-cancel for `pending` and `approved` bookings
+- Admin:
+  - Login
+  - Table-first dashboard
+  - Approve / reject bookings
+  - Add or resend user invites
 
-## 📅 System Evolution
+## Local Setup
+1. Install dependencies:
 
-* **v4.0 (Planned): All-Year STB Plan** — a centralized annual planning and execution module in e-Ruai, with calendar entries coordinated with the Strategic & Transformation Unit (STU) for alignment and governance.
-* **v3.0 (Current):** Full Web Application (React + Firebase). Real-time booking, in-app ticketing, and admin dashboards.
-* **v2.0 (Legacy):** Automation via Google Sheets & Google Apps Script (GAS).
-* **v1.0 (Legacy):** Manual process (PDF Forms & Email).
+```bash
+npm install
+```
 
----
+2. Copy env template:
 
-## ✨ Key Features
+```bash
+cp .env.example .env.local
+```
 
-### 1. Resource Booking Engine
-* **Real-time Availability:** Check room/unit status instantly via a calendar view.
-* **Booking Lifecycle (Audit-friendly):** `PENDING → APPROVED/REJECTED → CANCELLED` (plus `BLOCKED` for maintenance).
-* **Self-Service Cancellation:** Users can cancel their own `PENDING/APPROVED` bookings with a required reason.
-* **Admin Controls:** Admin can reject `PENDING` requests and cancel `APPROVED` meetings with required reasons.
-* **Conflict Detection:** Prevents double-booking automatically.
+3. Fill in Firebase web app values in `.env.local`.
 
-### 2. In-App Ticketing & Support System 🎫
-* **Forum-Style Threads:** Users can submit Enquiries, Bugs, or Feedback.
-* **Super Admin Inbox:** A centralized inbox for the Developer/Super Admin to manage and reply to tickets.
-* **Status Tracking:** Track tickets from `Pending` -> `Replied` -> `Resolved` -> `Closed`.
-* **Notifications:** Visual badges (Red Dot) for unread replies.
+4. Start dev server:
 
-### 3. User & Admin Dashboards
-* **Role-Based Access Control (RBAC):** Distinct views for Normal Users, Admins, and Super Admins.
-* **Admin Console Pending Badge:** Sidebar badge shows the number of `PENDING` meeting requests awaiting action.
-* **Clear Status Visibility:** Rejected/Cancelled entries are visually de-emphasized (e.g., strike-through/opacity) in admin views.
-* **Analytics:** Visual charts for booking trends (hidden by default for performance).
-* **Mobile Responsive:** Optimized Sidebar and navigation for mobile devices.
+```bash
+npm run dev
+```
 
-### 4. System Intelligence
-* **Version History:** Built-in changelog viewer to track system updates.
-* **Workflow Automation (n8n):** Optional webhook integration for booking creation + status updates (e.g., email notifications).
-* **Hardened Security:** Firestore Security Rules ensuring strict data privacy (Users see only their own data).
+5. Build for verification:
 
----
+```bash
+npm run build
+```
 
-## 🛠️ Tech Stack
+## Environment Variables
+Frontend Firebase config:
 
-* **Frontend:** React (Vite), TypeScript
-* **Styling:** Tailwind CSS, Lucide React (Icons)
-* **Backend / Database:** Firebase Firestore (NoSQL)
-* **Authentication:** Firebase Auth
-* **Deployment:** Vercel
+```env
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
+VITE_FIREBASE_MEASUREMENT_ID=
+```
 
----
+Optional email backend config for `api/send-email.ts`:
 
-## 🚀 Getting Started
+```env
+EMAIL_ENABLED=false
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM=
+ADMIN_NOTIFICATION_EMAILS=
+```
 
-### Prerequisites
-* Node.js (v18 or higher)
-* npm or yarn
+Notes:
+- Keep SMTP variables out of the frontend env namespace.
+- `ADMIN_NOTIFICATION_EMAILS` accepts a comma-separated list.
+- If `EMAIL_ENABLED` is not `true`, the email endpoint safely no-ops.
 
-### Installation
+## Firebase Setup Checklist
+1. Create a Firebase project.
+2. Register a Web App and copy the config into `.env.local`.
+3. Enable `Authentication > Email/Password`.
+4. Add authorized domains:
+   - `localhost`
+   - your Vercel domain
+   - any custom production domain
+5. Create Firestore.
+6. Seed one admin account:
+   - create auth user in Firebase Authentication
+   - create matching Firestore doc in `users/{uid}` with `role: "admin"`
+7. Seed at least one venue in `venues`.
 
-1.  **Clone the repository**
-    ```bash
-    git clone [https://github.com/your-username/e-ruai.git](https://github.com/your-username/e-ruai.git)
-    cd e-ruai
-    ```
+## Firestore Collections Used
+- `users`
+- `approvedEmails`
+- `venues`
+- `bookings`
 
-2.  **Install dependencies**
-    ```bash
-    npm install
-    ```
+## Security Rules
+`firestore.rules` in this repo is now aligned to the current MVP model:
+- users can read and update their own profile
+- admins can read all users
+- only admins manage `approvedEmails`
+- public venue browsing is allowed
+- bookings are readable by signed-in users for availability checks
+- only owners can cancel their own bookings
+- only admins can approve or reject bookings
 
-3.  **Environment Setup**
-    Create a `.env` file in the root directory and add your Firebase credentials:
-    ```env
-    VITE_FIREBASE_API_KEY=your_api_key
-    VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-    VITE_FIREBASE_PROJECT_ID=your_project_id
-    VITE_FIREBASE_STORAGE_BUCKET=your_bucket.appspot.com
-    VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-    VITE_FIREBASE_APP_ID=your_app_id
-    ```
+Deploy Firestore rules separately after confirming your Firebase project:
 
-4.  **Run Development Server**
-    ```bash
-    npm run dev
-    ```
+```bash
+firebase deploy --only firestore:rules
+```
 
----
+## Known Tradeoff
+For the current MVP, signed-in users can read booking documents needed for availability checks. This keeps the frontend simple, but it is not a privacy-maximal design. A later hardening phase should move availability into a reduced public-safe shape or a backend-mediated query.
 
-## 🔐 Security & Roles
+## Deployment
+This project is set up as a Vite SPA with Vercel rewrites in `vercel.json`.
 
-* **Super Admin:** Full access to all modules, system config, and the Support Inbox.
-* **Admin:** Can manage bookings (Rooms/Units) and view analytics.
-* **User:** Can make bookings and submit support tickets.
+For production email:
+- set SMTP env vars in Vercel project settings
+- redeploy after env changes
 
-*Security Rules are enforced at the Firestore level to prevent unauthorized data access.*
-
----
-
-## 👤 Ownership / Author
-
-Created and maintained by **[Mohd Hisyamudin](https://mohdhisyamudin.com)**.
-
-> Note: Parts of this project were developed with AI-assisted tooling; all final design and implementation decisions, review, and integration are owned by the author.
-
-## 📜 License
-
-This project is licensed under the **MIT License** — see [`LICENSE`](./LICENSE).
+## Author
+Created and maintained by [Mohd Hisyamudin](https://mohdhisyamudin.com).

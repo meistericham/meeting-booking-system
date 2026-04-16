@@ -1,163 +1,166 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper functions
     function isSignedIn() {
       return request.auth != null;
     }
-    
-    function uidDocPath() {
+
+    function currentUserDocPath() {
       return /databases/$(database)/documents/users/$(request.auth.uid);
     }
 
-    function emailDocPath() {
-      return /databases/$(database)/documents/users/$(request.auth.token.email);
+    function currentUserExists() {
+      return isSignedIn() && exists(currentUserDocPath());
     }
 
-    function userDocExists() {
-      return isSignedIn() && (exists(uidDocPath()) || exists(emailDocPath()));
+    function currentUserData() {
+      return get(currentUserDocPath()).data;
     }
 
-    function getUserData() {
-      return exists(uidDocPath())
-        ? get(uidDocPath()).data
-        : (exists(emailDocPath()) ? get(emailDocPath()).data : null);
-    }
-
-    function isSuperAdminEmail() {
-      return isSignedIn() && request.auth.token.email.lower() == 'hisyamudin@sarawaktourism.com';
-    }
-    
     function isAdmin() {
-      return isSignedIn() && (
-        isSuperAdminEmail()
-        || (userDocExists() && (getUserData().role == 'admin' || getUserData().role == 'super_admin'))
-        || (userDocExists() && getUserData().canApproveUsers == true)
-      );
-    }
-    
-    function isSuperAdmin() {
-      return isSignedIn() && (isSuperAdminEmail() || (userDocExists() && getUserData().role == 'super_admin'));
+      return currentUserExists() && currentUserData().role == 'admin';
     }
 
-    // Users collection: Users can read/update their own profile; Admins can read all
-    // NOTE: This project currently has legacy user docs keyed by email AND newer docs keyed by UID.
-    // These rules support both to avoid "Missing or insufficient permissions" during profile updates.
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
     match /users/{userId} {
-      // Read own doc (UID-keyed or email-keyed) or admins
-      allow read: if isSignedIn() && (
-        request.auth.uid == userId
-        || request.auth.token.email == userId
-        || isAdmin()
-      );
+      allow read: if isOwner(userId) || isAdmin();
 
-      // Profile self-service (display name + avatar): allow a signed-in user to create their own doc
-      // (either UID-keyed or email-keyed), but only with safe keys.
-      allow create: if isSignedIn()
-        && (request.auth.uid == userId || request.auth.token.email == userId)
+      allow create: if isOwner(userId)
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.email == request.auth.token.email
         && request.resource.data.role == 'user'
-        && request.resource.data.keys().hasOnly(['uid','email','role','displayName','avatar','updatedAt','createdAt']);
+        && request.resource.data.keys().hasOnly([
+          'uid',
+          'email',
+          'displayName',
+          'role',
+          'avatar',
+          'phoneNumber',
+          'organization',
+          'createdAt',
+          'updatedAt'
+        ]);
 
-      // Self-service update: allow changing ONLY displayName/avatar/updatedAt on own doc.
-      allow update: if isSignedIn()
-        && (
-          request.auth.uid == userId
-          || request.auth.token.email == userId
-        )
+      allow update: if isOwner(userId)
         && resource.data.uid == request.auth.uid
         && resource.data.role == 'user'
         && request.resource.data.uid == resource.data.uid
         && request.resource.data.email == resource.data.email
         && request.resource.data.role == resource.data.role
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName','avatar','updatedAt']);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'displayName',
+          'avatar',
+          'phoneNumber',
+          'organization',
+          'updatedAt'
+        ]);
 
-      // Only Super Admin can change roles or manage other users.
-      allow write: if isSuperAdmin();
+      allow delete: if false;
     }
 
-    // Units (Departments/Divisions): allow public read so Sign Up can show choices
-    match /units/{unitId} {
-      allow read: if true;
-      allow write: if isSuperAdmin();
-    }
-
-    // Rooms: Signed-in read, Super Admin write
-    match /rooms/{roomId} {
-      allow read: if isSignedIn();
-      allow write: if isSuperAdmin();
-    }
-
-    // Notifications
-    match /notifications/{notificationId} {
-      // Read only notifications meant for you/your role.
-      allow read: if isSignedIn()
-        && (
-          resource.data.recipientRole == 'all'
-          || resource.data.recipientRole == getUserData().role
-          || (isAdmin() && resource.data.recipientRole == 'admin')
-        )
-        && (!('targetUserId' in resource.data) || resource.data.targetUserId == null || resource.data.targetUserId == request.auth.uid);
-
-      // Create notifications:
-      // - Admins can create any
-      // - Standard users can only create admin notifications (e.g., new booking request) and must set createdBy=uid.
-      allow create: if isSignedIn() && (
-        isAdmin()
-        || (
-          request.resource.data.recipientRole == 'admin'
-          && (!('targetUserId' in request.resource.data) || request.resource.data.targetUserId == null)
-          && request.resource.data.createdBy == request.auth.uid
-        )
-      );
-
-      // Update:
-      // - Admins can update any
-      // - Users can only mark their own targeted notifications as read (isRead only)
-      allow update: if isSignedIn() && (
-        isAdmin()
-        || (
-          resource.data.targetUserId == request.auth.uid
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead'])
-        )
-      );
-
-      // Delete: admins only
+    match /approvedEmails/{email} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create, update: if isAdmin()
+        && request.resource.data.email == email
+        && request.resource.data.role == 'user';
       allow delete: if isAdmin();
     }
 
-    // App Settings (e.g., update notice popup config)
-    match /app_settings/{docId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isAdmin() && docId == 'update_notice';
+    match /venues/{venueId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
-    // Bookings
     match /bookings/{bookingId} {
-      // Anyone can read to check availability (could be restricted to 'approved' status for privacy)
       allow read: if isSignedIn();
-      
-      // Create:
-      // - Admin/Super Admin can create bookings (e.g., maintenance blocks)
-      // - Standard users can create only PENDING bookings and only within 90 days from now
-      allow create: if isSignedIn() && (
+
+      allow create: if currentUserExists()
+        && currentUserData().role == 'user'
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.guestEmail == request.auth.token.email
+        && request.resource.data.status == 'pending'
+        && request.resource.data.keys().hasOnly([
+          'userId',
+          'venueId',
+          'venueName',
+          'guestName',
+          'guestEmail',
+          'guestPhone',
+          'organization',
+          'date',
+          'startTime',
+          'endTime',
+          'startTimestamp',
+          'endTimestamp',
+          'eventTitle',
+          'eventType',
+          'expectedPax',
+          'specialRequests',
+          'status',
+          'createdAt'
+        ]);
+
+      allow update: if (
+        isOwner(resource.data.userId)
+        && resource.data.status in ['pending', 'approved']
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.venueId == resource.data.venueId
+        && request.resource.data.venueName == resource.data.venueName
+        && request.resource.data.guestName == resource.data.guestName
+        && request.resource.data.guestEmail == resource.data.guestEmail
+        && request.resource.data.guestPhone == resource.data.guestPhone
+        && request.resource.data.organization == resource.data.organization
+        && request.resource.data.date == resource.data.date
+        && request.resource.data.startTime == resource.data.startTime
+        && request.resource.data.endTime == resource.data.endTime
+        && request.resource.data.startTimestamp == resource.data.startTimestamp
+        && request.resource.data.endTimestamp == resource.data.endTimestamp
+        && request.resource.data.eventTitle == resource.data.eventTitle
+        && request.resource.data.eventType == resource.data.eventType
+        && request.resource.data.expectedPax == resource.data.expectedPax
+        && request.resource.data.specialRequests == resource.data.specialRequests
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.status == 'cancelled'
+        && request.resource.data.cancelledBy == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'cancelledAt',
+          'cancelledBy'
+        ])
+      ) || (
         isAdmin()
-        || (
-          getUserData().role == 'user'
-          && request.resource.data.userId == request.auth.uid
-          && request.resource.data.status == 'pending'
-          && request.resource.data.startTime <= request.time + duration.value(90, 'd')
-        )
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.venueId == resource.data.venueId
+        && request.resource.data.venueName == resource.data.venueName
+        && request.resource.data.guestName == resource.data.guestName
+        && request.resource.data.guestEmail == resource.data.guestEmail
+        && request.resource.data.guestPhone == resource.data.guestPhone
+        && request.resource.data.organization == resource.data.organization
+        && request.resource.data.date == resource.data.date
+        && request.resource.data.startTime == resource.data.startTime
+        && request.resource.data.endTime == resource.data.endTime
+        && request.resource.data.startTimestamp == resource.data.startTimestamp
+        && request.resource.data.endTimestamp == resource.data.endTimestamp
+        && request.resource.data.eventTitle == resource.data.eventTitle
+        && request.resource.data.eventType == resource.data.eventType
+        && request.resource.data.expectedPax == resource.data.expectedPax
+        && request.resource.data.specialRequests == resource.data.specialRequests
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'processedBy',
+          'processedAt',
+          'adminNotes'
+        ])
+        && request.resource.data.status in ['approved', 'rejected']
+        && request.resource.data.processedBy == request.auth.uid
       );
-        
-      // Update: Users can cancel (if implemented), Admins can approve/reject
-      allow update: if (isSignedIn() && request.auth.uid == resource.data.userId) // User updates (e.g. cancel)
-                    || isAdmin(); // Admin updates status
-                    
-      // Delete: Super Admin only
-      allow delete: if isSuperAdmin();
+
+      allow delete: if false;
     }
   }
 }
