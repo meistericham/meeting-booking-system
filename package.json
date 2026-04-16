@@ -1,7 +1,25 @@
 {
-  "name": "e-ruai---resource-unified-access-interface",
-  "private": true,
-  "version": "0.9.502",
+  "name": "meeting-booking-system",
+  "private": false,
+  "version": "1.0.0",
+  "description": "Responsive hall and venue booking web app by Mohd Hisyamudin.",
+  "license": "MIT",
+  "author": "Mohd Hisyamudin",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/meistericham/meeting-booking-system.git"
+  },
+  "homepage": "https://github.com/meistericham/meeting-booking-system",
+  "bugs": {
+    "url": "https://github.com/meistericham/meeting-booking-system/issues"
+  },
+  "keywords": [
+    "meeting-booking",
+    "venue-booking",
+    "react",
+    "vite",
+    "firebase"
+  ],
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -2,6 +2,8 @@
 
 Responsive hall and venue booking web app built with Vite, React, Tailwind, Firebase Auth, and Firestore.
 
+Open-source project by [Mohd Hisyamudin](https://github.com/meistericham), published at [github.com/meistericham/meeting-booking-system](https://github.com/meistericham/meeting-booking-system).
+
 This repo now targets a focused MVP:
 - Public users can browse venues without logging in
 - Invited users must sign in before booking
@@ -136,6 +138,19 @@ This project is set up as a Vite SPA with Vercel rewrites in `vercel.json`.
 For production email:
 - set SMTP env vars in Vercel project settings
 - redeploy after env changes
+
+## Open Source
+This repository is open source under the MIT License.
+
+Issues and pull requests are welcome, but the project direction and maintainer decisions remain with the repository owner.
+
+## Ownership
+Repository owner and primary maintainer: [Mohd Hisyamudin](https://github.com/meistericham)
+
+Project homepage: [github.com/meistericham/meeting-booking-system](https://github.com/meistericham/meeting-booking-system)
+
+## License
+[MIT](./LICENSE)
 
 ## Author
 Created and maintained by [Mohd Hisyamudin](https://mohdhisyamudin.com).
