@@ -65,79 +65,83 @@ const VenueDetailsPage: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-8">
-              {venues.map((venue) => (
-                <article
-                  key={venue.id}
-                  className="grid overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 lg:grid-cols-[1.1fr_0.9fr]"
-                >
-                  <div className="min-h-[240px] bg-gradient-to-br from-brand-maroon/15 via-brand-maroon/5 to-amber-100/60 dark:from-brand-maroon/30 dark:via-brand-maroon/10 dark:to-gray-800">
-                    {venue.imageUrl ? (
-                      <img
-                        src={venue.imageUrl}
-                        alt={venue.name}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center">
-                        <MapPin className="h-16 w-16 text-brand-maroon/35 dark:text-red-300/40" />
-                      </div>
-                    )}
-                  </div>
+              {venues.map((venue) => {
+                const amenities = venue.amenities ?? [];
 
-                  <div className="flex flex-col justify-between p-6 md:p-8">
-                    <div>
-                      <div className="inline-flex items-center gap-2 rounded-full bg-brand-maroon/8 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-maroon dark:bg-brand-maroon/20 dark:text-red-200">
-                        <Users className="h-3.5 w-3.5" />
-                        Up to {venue.capacity} guests
-                      </div>
-                      <h2 className="mt-4 text-2xl font-bold text-gray-900 dark:text-white">
-                        {venue.name}
-                      </h2>
-                      <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
-                        {venue.description}
-                      </p>
+                return (
+                  <article
+                    key={venue.id}
+                    className="grid overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 lg:grid-cols-[1.1fr_0.9fr]"
+                  >
+                    <div className="min-h-[240px] bg-gradient-to-br from-brand-maroon/15 via-brand-maroon/5 to-amber-100/60 dark:from-brand-maroon/30 dark:via-brand-maroon/10 dark:to-gray-800">
+                      {venue.imageUrl ? (
+                        <img
+                          src={venue.imageUrl}
+                          alt={venue.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center">
+                          <MapPin className="h-16 w-16 text-brand-maroon/35 dark:text-red-300/40" />
+                        </div>
+                      )}
+                    </div>
 
-                      <div className="mt-6">
-                        <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
-                          Amenities
-                        </h3>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {venue.amenities.length > 0 ? (
-                            venue.amenities.map((amenity) => (
-                              <span
-                                key={amenity}
-                                className="rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200"
-                              >
-                                {amenity}
+                    <div className="flex flex-col justify-between p-6 md:p-8">
+                      <div>
+                        <div className="inline-flex items-center gap-2 rounded-full bg-brand-maroon/8 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-maroon dark:bg-brand-maroon/20 dark:text-red-200">
+                          <Users className="h-3.5 w-3.5" />
+                          Up to {venue.capacity} guests
+                        </div>
+                        <h2 className="mt-4 text-2xl font-bold text-gray-900 dark:text-white">
+                          {venue.name}
+                        </h2>
+                        <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                          {venue.description}
+                        </p>
+
+                        <div className="mt-6">
+                          <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
+                            Amenities
+                          </h3>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {amenities.length > 0 ? (
+                              amenities.map((amenity) => (
+                                <span
+                                  key={amenity}
+                                  className="rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                                >
+                                  {amenity}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-sm text-gray-500 dark:text-gray-400">
+                                Amenities will be listed here once configured.
                               </span>
-                            ))
-                          ) : (
-                            <span className="text-sm text-gray-500 dark:text-gray-400">
-                              Amenities will be listed here once configured.
-                            </span>
-                          )}
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="mt-8 flex flex-wrap gap-3">
-                      <Link
-                        to={`/book/${venue.id}`}
-                        className="inline-flex items-center gap-2 rounded-xl bg-brand-maroon px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#74161c]"
-                      >
-                        Book this venue
-                        <ArrowRight className="h-4 w-4" />
-                      </Link>
-                      <Link
-                        to="/book"
-                        className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 transition-colors hover:border-brand-maroon hover:text-brand-maroon dark:border-gray-700 dark:text-gray-200 dark:hover:border-red-300 dark:hover:text-red-200"
-                      >
-                        Compare in booking form
-                      </Link>
+                      <div className="mt-8 flex flex-wrap gap-3">
+                        <Link
+                          to={`/book/${venue.id}`}
+                          className="inline-flex items-center gap-2 rounded-xl bg-brand-maroon px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#74161c]"
+                        >
+                          Book this venue
+                          <ArrowRight className="h-4 w-4" />
+                        </Link>
+                        <Link
+                          to="/book"
+                          className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 transition-colors hover:border-brand-maroon hover:text-brand-maroon dark:border-gray-700 dark:text-gray-200 dark:hover:border-red-300 dark:hover:text-red-200"
+                        >
+                          Compare in booking form
+                        </Link>
+                      </div>
                     </div>
-                  </div>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           )}
         </div>

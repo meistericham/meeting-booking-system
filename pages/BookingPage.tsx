@@ -404,7 +404,7 @@ const BookingPage: React.FC = () => {
                         <MapPin className="h-5 w-5 text-brand-maroon dark:text-red-300" />
                       </div>
                       <div className="mt-4 flex flex-wrap gap-2">
-                        {directVenue.amenities.map((amenity) => (
+                        {(directVenue.amenities ?? []).map((amenity) => (
                           <span
                             key={amenity}
                             className="rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-700 shadow-sm dark:bg-gray-800 dark:text-gray-200"
@@ -456,6 +456,7 @@ const BookingPage: React.FC = () => {
                   <div className="grid gap-4 md:grid-cols-2">
                     {availableVenues.map((venue) => {
                       const isSelected = selectedVenueId === venue.id;
+                      const amenities = venue.amenities ?? [];
 
                       return (
                         <button
@@ -486,7 +487,7 @@ const BookingPage: React.FC = () => {
                             Capacity up to {venue.capacity} guests
                           </div>
                           <div className="mt-4 flex flex-wrap gap-2">
-                            {venue.amenities.slice(0, 4).map((amenity) => (
+                            {amenities.slice(0, 4).map((amenity) => (
                               <span
                                 key={amenity}
                                 className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200"

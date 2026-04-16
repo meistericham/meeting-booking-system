@@ -8,6 +8,8 @@ interface VenueCardProps {
 }
 
 const VenueCard: React.FC<VenueCardProps> = ({ venue }) => {
+  const amenities = venue.amenities ?? [];
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-md transition-shadow group">
       {/* Image */}
@@ -32,9 +34,9 @@ const VenueCard: React.FC<VenueCardProps> = ({ venue }) => {
         </div>
 
         {/* Amenities */}
-        {venue.amenities.length > 0 && (
+        {amenities.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-4">
-            {venue.amenities.slice(0, 4).map((amenity) => (
+            {amenities.slice(0, 4).map((amenity) => (
               <span
                 key={amenity}
                 className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
@@ -42,9 +44,9 @@ const VenueCard: React.FC<VenueCardProps> = ({ venue }) => {
                 {amenity}
               </span>
             ))}
-            {venue.amenities.length > 4 && (
+            {amenities.length > 4 && (
               <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
-                +{venue.amenities.length - 4} more
+                +{amenities.length - 4} more
               </span>
             )}
           </div>
