@@ -1,5 +1,5 @@
 import React from 'react';
-import { User } from '../../types';
+import { AdminUser } from '../../types';
 import { colorFromString, getInitials } from '../../utils/avatar';
 
 type AvatarSize = 'sm' | 'md' | 'lg';
@@ -11,7 +11,7 @@ const sizeClasses: Record<AvatarSize, string> = {
 };
 
 interface AvatarProps {
-  user?: Partial<User> | null;
+  user?: Partial<AdminUser> | null;
   displayName?: string;
   email?: string;
   bgColor?: string | null;
@@ -31,8 +31,7 @@ const Avatar: React.FC<AvatarProps> = ({
   const mail = email ?? user?.email;
   const resolvedBg =
     bgColor ??
-    (user as any)?.avatar?.bgColor ??
-    (user as any)?.avatarBgColor ??
+    user?.avatar?.bgColor ??
     colorFromString(mail || name || 'user');
 
   const initials = getInitials(name, mail);

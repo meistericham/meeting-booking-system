@@ -1,342 +1,364 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../services/authContext';
-import { fetchRooms, fetchBookings, fetchUnits, fetchUsers, fetchUserTickets } from '../services/dataService';
-import { Room, Booking, Unit, User } from '../types';
-import { Users, Monitor, Calendar as CalendarIcon, ChevronDown, ChevronUp, LifeBuoy } from 'lucide-react';
-import { formatDateStandard } from '../utils';
-import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
-import Modal from '../components/ui/Modal';
-import RoomAvailability from '../components/RoomAvailability';
+import {
+  AlertCircle,
+  CalendarDays,
+  Loader2,
+  MapPin,
+  Phone,
+  RefreshCw,
+  ShieldCheck,
+  XCircle,
+} from 'lucide-react';
+import PublicLayout from '../components/PublicLayout';
 import StatusBadge from '../components/StatusBadge';
-import BookingForm from '../components/BookingForm';
+import { useAuth } from '../services/authContext';
+import { sendBookingStatusEmail } from '../services/emailService';
+import { cancelBooking, fetchBookingsByUser } from '../services/dataService';
+import { Booking, BookingStatus } from '../types';
 
-const UserDashboard = () => {
+const formatDate = (value: string) =>
+  new Date(`${value}T00:00:00`).toLocaleDateString('en-MY', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+
+const UserDashboard: React.FC = () => {
   const { user } = useAuth();
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [myBookings, setMyBookings] = useState<Booking[]>([]);
-  const [allBookings, setAllBookings] = useState<Booking[]>([]); 
-  const [units, setUnits] = useState<Unit[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showUpcoming, setShowUpcoming] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-  const [hasUnreadTickets, setHasUnreadTickets] = useState(false);
-  
-  // Modal & Selection State
-  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [error, setError] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | BookingStatus>('all');
+  const [actionBookingId, setActionBookingId] = useState<string | null>(null);
 
-  const loadData = async () => {
+  const loadBookings = async () => {
+    if (!user) {
+      return;
+    }
+
     setLoading(true);
-    const [roomsData, bookingsData, unitsData, usersData] = await Promise.all([fetchRooms(), fetchBookings(), fetchUnits(), fetchUsers()]);
-    setRooms(roomsData);
-    setAllBookings(bookingsData);
-    setMyBookings(bookingsData.filter(b => b.userId === user?.uid).sort((a, b) => b.startTime - a.startTime));
-    setUnits(unitsData);
-    setUsers(usersData);
-    setLoading(false);
-  };
+    setError('');
 
-  useEffect(() => {
-    loadData();
-  }, [user]);
-
-  useEffect(() => {
-    const loadTickets = async () => {
-      if (!user) return;
-      const tickets = await fetchUserTickets(user.uid);
-      setHasUnreadTickets(tickets.some(ticket => !ticket.isReadByUser));
-    };
-    loadTickets();
-  }, [user]);
-
-  
-  // Handler for Date selection from Availability Component
-  const handleAvailabilityDateSelect = (dateStr: string, roomId: string) => {
-    const room = rooms.find(r => r.id === roomId);
-    if (room) {
-        setSelectedDate(dateStr);
-        setSelectedRoom(room); // Triggers Modal
+    try {
+      const data = await fetchBookingsByUser(user.uid);
+      setBookings(data);
+    } catch {
+      setError('Unable to load your bookings right now.');
+      setBookings([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleBookingSuccess = () => {
-    setSelectedRoom(null);
-    loadData(); // Refresh data to show new booking
-    alert("Booking submitted! Waiting for Admin approval.");
+  useEffect(() => {
+    void loadBookings();
+  }, [user]);
+
+  const filteredBookings = useMemo(() => {
+    if (statusFilter === 'all') {
+      return bookings;
+    }
+
+    return bookings.filter((booking) => booking.status === statusFilter);
+  }, [bookings, statusFilter]);
+
+  const handleCancelBooking = async (booking: Booking) => {
+    if (!user) {
+      return;
+    }
+
+    setActionBookingId(booking.id);
+    setError('');
+
+    try {
+      await cancelBooking(booking.id, user.uid);
+      setBookings((current) =>
+        current.map((currentBooking) =>
+          currentBooking.id === booking.id
+            ? {
+                ...currentBooking,
+                status: BookingStatus.CANCELLED,
+                cancelledAt: Date.now(),
+                cancelledBy: user.uid,
+              }
+            : currentBooking
+        )
+      );
+
+      void sendBookingStatusEmail({
+        id: booking.id,
+        guestName: booking.guestName,
+        guestEmail: booking.guestEmail,
+        venueName: booking.venueName,
+        date: booking.date,
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        eventTitle: booking.eventTitle,
+        status: BookingStatus.CANCELLED,
+      }).catch(() => undefined);
+    } catch (cancelError) {
+      setError(
+        cancelError instanceof Error
+          ? cancelError.message
+          : 'Unable to cancel this booking.'
+      );
+    } finally {
+      setActionBookingId(null);
+    }
   };
 
-  if (loading) return <div className="p-8 text-center text-gray-500 dark:text-gray-400">Loading workspace data...</div>;
-
-  const weekStart = new Date();
-  const dayOfWeek = weekStart.getDay(); // 0 = Sunday
-  weekStart.setDate(weekStart.getDate() - dayOfWeek);
-  weekStart.setHours(0, 0, 0, 0);
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 7);
-  const weekStartTs = weekStart.getTime();
-  const weekEndTs = weekEnd.getTime();
-
-  const pastBookings = myBookings
-    .filter(bk => bk.endTime < weekStartTs)
-    .sort((a, b) => b.startTime - a.startTime);
-
-  const currentWeekBookings = myBookings
-    .filter(bk => bk.startTime < weekEndTs && bk.endTime >= weekStartTs)
-    .sort((a, b) => a.startTime - b.startTime);
-
-  const upcomingBookings = myBookings
-    .filter(bk => bk.startTime >= weekEndTs)
-    .sort((a, b) => a.startTime - b.startTime);
-
   return (
-    <div className="space-y-8 px-4 sm:px-6 lg:px-8">
-      <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="space-y-2">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Workspace Dashboard</h1>
-          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400">Find and book the perfect space for your team.</p>
-        </div>
-        <Link to="/support" className="relative inline-flex">
-          <Button icon={<LifeBuoy className="w-4 h-4" />}>
-            Help & Support
-          </Button>
-          {hasUnreadTickets && (
-            <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-900" />
-          )}
-        </Link>
-      </header>
-
-      {/* --- Calendar Section --- */}
-      {/* Full-bleed on mobile (override page padding) */}
-      <div className="-mx-4 sm:mx-0">
-        <RoomAvailability
-          rooms={rooms}
-          bookings={allBookings}
-          allUsers={users}
-          onDateSelect={handleAvailabilityDateSelect}
-        />
-      </div>
-
-      {/* Available Rooms Grid */}
-      <section>
-        <h2 className="text-lg sm:text-xl font-semibold mb-4 flex flex-col sm:flex-row sm:items-center gap-2 text-gray-900 dark:text-white">
-          <Monitor className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> Quick Book by Room
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {rooms.map(room => (
-            <Card key={room.id} noPadding className="hover:shadow-md transition-shadow">
-              <div className="h-40 sm:h-48 bg-gray-200 dark:bg-gray-800 relative">
-                 <img src={room.imageUrl} alt={room.name} className="w-full h-full object-cover" />
-                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-                   <h3 className="text-white font-bold text-lg">{room.name}</h3>
-                 </div>
-              </div>
-              <div className="p-4">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  <span className="flex items-center gap-1"><Users className="w-4 h-4" /> {room.capacity} ppl</span>
-                  <span className="flex items-center gap-1"><Monitor className="w-4 h-4" /> {room.equipment.length} items</span>
+    <PublicLayout>
+      <section className="bg-gray-50 py-10 dark:bg-gray-950 md:py-14">
+        <div className="mx-auto max-w-7xl px-4 md:px-8">
+          <div className="grid gap-6 lg:grid-cols-[0.72fr_1.28fr]">
+            <div className="space-y-6">
+              <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                <div className="inline-flex items-center gap-2 rounded-full bg-brand-maroon/8 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-maroon dark:bg-brand-maroon/20 dark:text-red-200">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  User Dashboard
                 </div>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {room.equipment.map(eq => (
-                    <span key={eq} className="px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-xs rounded-full">{eq}</span>
-                  ))}
+                <h1 className="mt-4 text-3xl font-bold text-gray-900 dark:text-white">
+                  Welcome back, {user?.displayName}
+                </h1>
+                <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                  Review your booking statuses, cancel active requests if needed, and request
+                  another venue when you are ready.
+                </p>
+
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Link
+                    to="/book"
+                    className="rounded-xl bg-brand-maroon px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#74161c]"
+                  >
+                    Book a venue
+                  </Link>
+                  <Link
+                    to="/venue"
+                    className="rounded-xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 transition-colors hover:border-brand-maroon hover:text-brand-maroon dark:border-gray-700 dark:text-gray-200 dark:hover:border-red-300 dark:hover:text-red-200"
+                  >
+                    Browse venues
+                  </Link>
                 </div>
-                <Button 
-                  onClick={() => setSelectedRoom(room)}
-                  className="w-full"
-                >
-                  Book Now
-                </Button>
               </div>
-            </Card>
-          ))}
-        </div>
-      </section>
 
-      {/* My Bookings */}
-      <section className="space-y-6">
-        <div>
-          <h2 className="text-lg sm:text-xl font-semibold flex flex-col sm:flex-row sm:items-center gap-2 text-gray-900 dark:text-white">
-            <CalendarIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> My Requests
-          </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Keep track of what is happening now, next, and in the past.
-          </p>
-        </div>
-
-        <div className="space-y-3">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
-            Happening This Week
-          </h3>
-          {currentWeekBookings.length === 0 ? (
-            <p className="text-gray-500 dark:text-gray-400 italic">No bookings this week.</p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {currentWeekBookings.map(bk => {
-                const start = new Date(bk.startTime);
-                const end = new Date(bk.endTime);
-                return (
-                  <div key={bk.id} className="rounded-lg border border-gray-200 dark:border-gray-800 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-gray-900 dark:text-white font-medium">{bk.roomName}</div>
-                      <StatusBadge status={bk.status} />
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                        {formatDateStandard(start)} · {start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                      {bk.purpose}
+              <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Account Snapshot
+                </h2>
+                <dl className="mt-5 space-y-4 text-sm">
+                  <div>
+                    <dt className="text-gray-500 dark:text-gray-400">Email</dt>
+                    <dd className="mt-1 font-medium text-gray-900 dark:text-white">
+                      {user?.email}
+                    </dd>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Phone className="mt-0.5 h-4 w-4 text-brand-maroon dark:text-red-300" />
+                    <div>
+                      <dt className="text-gray-500 dark:text-gray-400">Phone</dt>
+                      <dd className="mt-1 font-medium text-gray-900 dark:text-white">
+                        {user?.phoneNumber || 'Not provided yet'}
+                      </dd>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                  <div className="flex items-start gap-3">
+                    <MapPin className="mt-0.5 h-4 w-4 text-brand-maroon dark:text-red-300" />
+                    <div>
+                      <dt className="text-gray-500 dark:text-gray-400">Organization</dt>
+                      <dd className="mt-1 font-medium text-gray-900 dark:text-white">
+                        {user?.organization || 'Not provided yet'}
+                      </dd>
+                    </div>
+                  </div>
+                </dl>
+              </div>
 
-        <Card
-          noPadding
-          className="-mx-4 sm:mx-0 rounded-none shadow-none border-0 border-y border-gray-200 dark:border-gray-800 sm:rounded-xl sm:shadow-sm sm:border sm:border-gray-200 sm:dark:border-gray-700"
-        >
-          <div className="px-4 py-4 sm:p-6">
-            <button
-              type="button"
-              onClick={() => setShowUpcoming(prev => !prev)}
-              className="w-full flex items-center justify-between text-left"
-              aria-expanded={showUpcoming}
-            >
-            <span className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
-              Upcoming Bookings
-            </span>
-            <span className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-              {showUpcoming ? 'Hide' : 'Show'}
-              {showUpcoming ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </span>
-          </button>
-            {showUpcoming && (
-              <div className="mt-4">
-              {upcomingBookings.length === 0 ? (
-                <p className="text-gray-500 dark:text-gray-400 italic">No upcoming bookings.</p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-900/40 dark:bg-amber-900/10">
+                  <p className="text-sm text-amber-700 dark:text-amber-300">Pending</p>
+                  <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
+                    {bookings.filter((booking) => booking.status === BookingStatus.PENDING).length}
+                  </p>
+                </div>
+                <div className="rounded-3xl border border-green-200 bg-green-50 p-5 dark:border-green-900/40 dark:bg-green-900/10">
+                  <p className="text-sm text-green-700 dark:text-green-300">Approved</p>
+                  <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
+                    {bookings.filter((booking) => booking.status === BookingStatus.APPROVED).length}
+                  </p>
+                </div>
+                <div className="rounded-3xl border border-red-200 bg-red-50 p-5 dark:border-red-900/40 dark:bg-red-900/10">
+                  <p className="text-sm text-red-700 dark:text-red-300">Rejected</p>
+                  <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
+                    {bookings.filter((booking) => booking.status === BookingStatus.REJECTED).length}
+                  </p>
+                </div>
+                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-900/30">
+                  <p className="text-sm text-slate-700 dark:text-slate-300">Cancelled</p>
+                  <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
+                    {bookings.filter((booking) => booking.status === BookingStatus.CANCELLED).length}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+              <div className="flex flex-col gap-4 border-b border-gray-200 pb-6 dark:border-gray-800 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    My Bookings
+                  </h2>
+                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    Track your booking requests and cancel any active request you no longer need.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void loadBookings()}
+                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:border-brand-maroon hover:text-brand-maroon dark:border-gray-700 dark:text-gray-200 dark:hover:border-red-300 dark:hover:text-red-200"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Refresh
+                </button>
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-2">
+                {(['all', BookingStatus.PENDING, BookingStatus.APPROVED, BookingStatus.REJECTED, BookingStatus.CANCELLED] as const).map((value) => {
+                  const active = statusFilter === value;
+                  const label = value === 'all' ? 'All' : value.charAt(0).toUpperCase() + value.slice(1);
+
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setStatusFilter(value)}
+                      className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                        active
+                          ? 'bg-brand-maroon text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {error && (
+                <div className="mt-6 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/10 dark:text-red-300">
+                  <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {loading ? (
+                <div className="flex justify-center py-20">
+                  <Loader2 className="h-8 w-8 animate-spin text-brand-maroon" />
+                </div>
+              ) : filteredBookings.length === 0 ? (
+                <div className="py-16 text-center">
+                  <CalendarDays className="mx-auto h-12 w-12 text-gray-300 dark:text-gray-600" />
+                  <p className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">
+                    No bookings found
+                  </p>
+                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    Once you submit a booking request, it will appear here.
+                  </p>
+                </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {upcomingBookings.map(bk => {
-                    const start = new Date(bk.startTime);
-                    const end = new Date(bk.endTime);
+                <div className="mt-6 grid gap-4">
+                  {filteredBookings.map((booking) => {
+                    const isCancelling = actionBookingId === booking.id;
+                    const canCancel =
+                      booking.status === BookingStatus.PENDING ||
+                      booking.status === BookingStatus.APPROVED;
+
                     return (
-                      <div key={bk.id} className="rounded-lg border border-gray-200 dark:border-gray-800 p-4">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="text-gray-900 dark:text-white font-medium">{bk.roomName}</div>
-                          <StatusBadge status={bk.status} />
+                      <article
+                        key={booking.id}
+                        className="rounded-2xl border border-gray-200 p-5 dark:border-gray-800"
+                      >
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="space-y-3">
+                            <div className="flex flex-wrap items-center gap-3">
+                              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                {booking.eventTitle}
+                              </h3>
+                              <StatusBadge status={booking.status} />
+                            </div>
+
+                            <div className="grid gap-3 text-sm text-gray-600 dark:text-gray-300 sm:grid-cols-2 lg:grid-cols-4">
+                              <div>
+                                <div className="text-xs uppercase tracking-[0.2em] text-gray-400">
+                                  Venue
+                                </div>
+                                <div className="mt-1 font-medium text-gray-900 dark:text-white">
+                                  {booking.venueName}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-xs uppercase tracking-[0.2em] text-gray-400">
+                                  Schedule
+                                </div>
+                                <div className="mt-1 font-medium text-gray-900 dark:text-white">
+                                  {formatDate(booking.date)}
+                                </div>
+                                <div>
+                                  {booking.startTime} - {booking.endTime}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-xs uppercase tracking-[0.2em] text-gray-400">
+                                  Type
+                                </div>
+                                <div className="mt-1 font-medium capitalize text-gray-900 dark:text-white">
+                                  {booking.eventType}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-xs uppercase tracking-[0.2em] text-gray-400">
+                                  Pax
+                                </div>
+                                <div className="mt-1 font-medium text-gray-900 dark:text-white">
+                                  {booking.expectedPax} guests
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            {canCancel ? (
+                              <button
+                                type="button"
+                                disabled={isCancelling}
+                                onClick={() => void handleCancelBooking(booking)}
+                                className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {isCancelling ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <XCircle className="h-4 w-4" />
+                                )}
+                                Cancel booking
+                              </button>
+                            ) : (
+                              <div className="rounded-xl bg-gray-50 px-4 py-2.5 text-sm text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                                No actions available
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                          {formatDateStandard(start)} · {start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                        </div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                          {bk.purpose}
-                        </div>
-                      </div>
+                      </article>
                     );
                   })}
                 </div>
               )}
             </div>
-          )}
           </div>
-        </Card>
-
-        <Card
-          noPadding
-          className="-mx-4 sm:mx-0 rounded-none shadow-none border-0 border-y border-gray-200 dark:border-gray-800 sm:rounded-xl sm:shadow-sm sm:border sm:border-gray-200 sm:dark:border-gray-700"
-        >
-          <div className="px-4 py-4 sm:p-6">
-            <button
-              type="button"
-              onClick={() => setShowHistory(prev => !prev)}
-            className="w-full flex items-center justify-between text-left"
-            aria-expanded={showHistory}
-          >
-            <span className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
-              Past History
-            </span>
-            <span className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-              {showHistory ? 'Hide' : 'Show'}
-              {showHistory ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </span>
-          </button>
-          {showHistory && (
-            <div className="mt-4">
-              {pastBookings.length === 0 ? (
-                <p className="text-gray-500 dark:text-gray-400 italic">No past bookings.</p>
-              ) : (
-                <>
-                  <div className="space-y-2 sm:hidden">
-                    {pastBookings.map(bk => {
-                      const start = new Date(bk.startTime);
-                      return (
-                        <div key={bk.id} className="flex items-center justify-between rounded-md border border-gray-200 dark:border-gray-800 px-3 py-2 text-sm">
-                          <div className="flex flex-col">
-                            <span className="text-gray-900 dark:text-white font-medium">{bk.roomName}</span>
-                            <span className="text-gray-500 dark:text-gray-400">{formatDateStandard(start)}</span>
-                          </div>
-                          <StatusBadge status={bk.status} />
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="hidden sm:block overflow-x-auto rounded-lg shadow border border-gray-200 dark:border-gray-800">
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800 text-left">
-                      <thead>
-                        <tr className="border-b border-gray-200 dark:border-gray-800 text-sm text-gray-500 dark:text-gray-400">
-                          <th className="pb-2 font-medium whitespace-nowrap">Date</th>
-                          <th className="pb-2 font-medium whitespace-nowrap">Room</th>
-                          <th className="pb-2 font-medium whitespace-nowrap">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                        {pastBookings.map(bk => {
-                          const start = new Date(bk.startTime);
-                          return (
-                            <tr key={bk.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                              <td className="py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDateStandard(start)}</td>
-                              <td className="py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{bk.roomName}</td>
-                              <td className="py-3">
-                                <StatusBadge status={bk.status} />
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
         </div>
-        </Card>
       </section>
-
-      {/* Booking Modal - Now using extracted component */}
-      <Modal
-        isOpen={!!selectedRoom}
-        onClose={() => setSelectedRoom(null)}
-        title={selectedRoom ? `Book ${selectedRoom.name}` : 'Book Room'}
-      >
-        {selectedRoom && user && (
-          <BookingForm 
-            user={user}
-            room={selectedRoom}
-            units={units}
-            existingBookings={allBookings}
-            initialDate={selectedDate}
-            onSuccess={handleBookingSuccess}
-            onCancel={() => setSelectedRoom(null)}
-          />
-        )}
-      </Modal>
-    </div>
+    </PublicLayout>
   );
 };
 

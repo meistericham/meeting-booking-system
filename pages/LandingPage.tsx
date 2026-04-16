@@ -1,159 +1,130 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Shield, Zap, Users, Bell, Calendar } from 'lucide-react';
-import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
+import { Calendar, ArrowRight, MapPin, Clock, CheckCircle, Loader2 } from 'lucide-react';
+import PublicLayout from '../components/PublicLayout';
+import VenueCard from '../components/VenueCard';
+import { fetchVenues } from '../services/dataService';
+import { Venue } from '../types';
 import { APP_CONFIG } from '../config/appConfig';
-import { APP_VERSION } from '../data/changelog';
 
-// Tribal Pattern for Landing Page Background (Adapted for Light/Dark modes)
-const TribalPattern = () => (
-  <svg className="absolute inset-0 w-full h-full opacity-[0.03] dark:opacity-[0.05] pointer-events-none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <pattern id="tribal-grid" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
-        <path d="M30 0 L60 30 L30 60 L0 30 Z" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-indigo-900 dark:text-indigo-400" />
-        <rect x="24" y="24" width="12" height="12" transform="rotate(45 30 30)" fill="currentColor" className="text-indigo-900 dark:text-indigo-400" />
-        <path d="M0 0 L10 10 M50 50 L60 60 M60 0 L50 10 M10 50 L0 60" stroke="currentColor" strokeWidth="1" className="text-indigo-900 dark:text-indigo-400" />
-      </pattern>
-    </defs>
-    <rect width="100%" height="100%" fill="url(#tribal-grid)" />
-  </svg>
-);
+const LandingPage: React.FC = () => {
+  const [venues, setVenues] = useState<Venue[]>([]);
+  const [loading, setLoading] = useState(true);
 
-const LandingPage = () => {
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await fetchVenues();
+        setVenues(data.filter((v) => v.isActive));
+      } catch {
+        setVenues([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
   return (
-    <div className="flex flex-col min-h-[calc(100vh-4rem)] bg-white dark:bg-gray-950 transition-colors duration-200">
-      
-      {/* Hero Section */}
-      <section className="relative px-4 py-20 lg:py-28 overflow-hidden">
-        {/* Pattern Background */}
-        <TribalPattern />
-        
-        {/* Gradient Mesh Effect (Optional Subtlety) */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full max-w-7xl bg-gradient-to-b from-indigo-50/50 to-transparent dark:from-indigo-950/20 dark:to-transparent pointer-events-none" />
-
-        <div className="container mx-auto max-w-6xl text-center relative z-10">
-          
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-sm font-medium mb-6 animate-in fade-in slide-in-from-top-4 duration-700">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-            </span>
-            {APP_CONFIG.APP_NAME} : {APP_CONFIG.APP_SUBTITLE}
-          </div>
-          
-          {/* The Story Paragraph */}
-          <div className="max-w-xl mx-auto mb-8 animate-in fade-in slide-in-from-bottom-2 duration-1000 delay-100">
-            <p className="text-sm md:text-base text-gray-500 dark:text-gray-400 leading-relaxed font-light italic">
-              "{APP_CONFIG.APP_STORY}"
+    <PublicLayout>
+      {/* Hero */}
+      <section className="relative bg-gradient-to-br from-brand-maroon to-[#5a1015] text-white overflow-hidden">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggZD0iTTM2IDE4YzAtOS45NC04LjA2LTE4LTE4LTE4UzAgOC4wNiAwIDE4czguMDYgMTggMTggMTggMTgtOC4wNiAxOC0xOHoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-50" />
+        <div className="relative max-w-7xl mx-auto px-4 md:px-8 py-20 md:py-32">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-sm font-medium mb-6 backdrop-blur-sm">
+              <Calendar className="w-4 h-4" />
+              {APP_CONFIG.APP_SUBTITLE}
+            </div>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6">
+              Book Your Perfect <span className="text-brand-gold">Venue</span>
+            </h1>
+            <p className="text-lg md:text-xl text-white/80 mb-8 leading-relaxed">
+              {APP_CONFIG.APP_STORY}
             </p>
-          </div>
-
-          <h1 className="text-5xl lg:text-7xl font-bold tracking-tight text-gray-900 dark:text-white mb-4 drop-shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-200">
-            Book Meeting Rooms <br/>
-            <span className="text-indigo-600 dark:text-indigo-400">Without the Chaos</span>
-          </h1>
-
-          {/* Version label */}
-          <div className="text-xs text-gray-500 dark:text-gray-400 mb-6 animate-in fade-in slide-in-from-bottom-2 duration-1000 delay-250">
-            v{APP_VERSION} (Beta)
-          </div>
-          
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-10 leading-relaxed animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300">
-            Stop double-booking and fighting for space. {APP_CONFIG.APP_NAME} provides a seamless, 
-            intelligent way to manage your organization's meeting spaces in real-time.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-500">
-            <Link to="/login" className="w-full sm:w-auto">
-              <Button className="w-full text-xl h-16 px-12 shadow-indigo-200 dark:shadow-none shadow-lg hover:shadow-xl transition-all">Get Started</Button>
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link
+                to="/book"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-brand-maroon font-semibold rounded-lg hover:bg-gray-100 transition-colors shadow-lg"
+              >
+                Book Now <ArrowRight className="w-5 h-5" />
+              </Link>
+              <Link
+                to="/venue"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white/10 text-white font-semibold rounded-lg hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/20"
+              >
+                View Venues
+              </Link>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="bg-gray-50 dark:bg-gray-950 py-20 px-4 transition-colors duration-200">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Everything you need to sync</h2>
-            <p className="text-gray-500 dark:text-gray-400">Powerful features for teams of all sizes.</p>
+      {/* How It Works */}
+      <section className="py-16 md:py-24 bg-white dark:bg-gray-900">
+        <div className="max-w-7xl mx-auto px-4 md:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-3">
+              How It Works
+            </h2>
+            <p className="text-gray-500 dark:text-gray-400 max-w-lg mx-auto">
+              Invited users can request a venue in 3 simple steps.
+            </p>
           </div>
-          
-          <div className="grid md:grid-cols-3 gap-8">
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
             {[
-              {
-                icon: <Zap className="w-6 h-6 text-yellow-500" />,
-                title: "Real-time Availability",
-                desc: "Instantly see which rooms are free. No more walking around finding empty seats."
-              },
-              {
-                icon: <Shield className="w-6 h-6 text-indigo-500" />,
-                title: "Smart Conflict Detection",
-                desc: "Our engine mathematically ensures zero double-bookings, even with concurrent requests."
-              },
-              {
-                icon: <Bell className="w-6 h-6 text-rose-500" />,
-                title: "Automated Reminders",
-                desc: "Automated meeting notifications and reminders to keep schedules on track and teams aligned."
-              },
-              {
-                icon: <Calendar className="w-6 h-6 text-sky-500" />,
-                title: "Fast Booking",
-                desc: "Book, reschedule, or cancel in seconds with a clean, intuitive flow."
-              },
-              {
-                icon: <Users className="w-6 h-6 text-green-500" />,
-                title: "Permissions & Controls",
-                desc: "Granular access controls so the right people can manage rooms, users, and settings."
-              }
-            ].map((feature, i) => (
-              <Card key={i} className="hover:shadow-md transition-shadow">
-                <div className="w-12 h-12 bg-gray-50 dark:bg-gray-800 rounded-lg flex items-center justify-center mb-6">
-                  {feature.icon}
+              { icon: MapPin, title: 'Choose a Venue', desc: 'Browse our available halls and spaces to find the right fit.' },
+              { icon: Clock, title: 'Sign In & Check Availability', desc: 'Log in, choose your date and time slot, then view only the venues that are still available.' },
+              { icon: CheckCircle, title: 'Submit & Track', desc: 'Send your booking request and monitor its status from your dashboard.' },
+            ].map((step, i) => (
+              <div key={i} className="text-center group">
+                <div className="w-14 h-14 mx-auto mb-4 rounded-xl bg-brand-maroon/5 dark:bg-brand-maroon/10 flex items-center justify-center group-hover:bg-brand-maroon/10 transition-colors">
+                  <step.icon className="w-7 h-7 text-brand-maroon dark:text-red-400" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">{feature.title}</h3>
-                <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{feature.desc}</p>
-              </Card>
+                <div className="text-xs font-bold text-brand-maroon dark:text-red-400 mb-1 uppercase tracking-wider">
+                  Step {i + 1}
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{step.title}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{step.desc}</p>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Bottom CTA */}
-      <section className="bg-indigo-900 dark:bg-indigo-950 py-20 px-4 text-white transition-colors duration-200 relative overflow-hidden">
-        {/* Subtle pattern overlay for CTA as well */}
-        <div className="absolute inset-0 opacity-10">
-            <TribalPattern />
-        </div>
-        <div className="container mx-auto max-w-4xl text-center relative z-10">
-          <h2 className="text-3xl font-bold mb-8">Ready to streamline your office?</h2>
-          <Link to="/login">
-            <button className="px-8 py-4 bg-white text-indigo-900 dark:text-indigo-950 rounded-xl text-lg font-bold hover:bg-gray-100 transition-colors shadow-lg">
-              Create Your Account
-            </button>
-          </Link>
+      {/* Venues */}
+      <section className="py-16 md:py-24 bg-gray-50 dark:bg-gray-950">
+        <div className="max-w-7xl mx-auto px-4 md:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-3">
+              Our Venues
+            </h2>
+            <p className="text-gray-500 dark:text-gray-400 max-w-lg mx-auto">
+              Explore our halls and spaces available for booking.
+            </p>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-brand-maroon" />
+            </div>
+          ) : venues.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {venues.map((venue) => (
+                <VenueCard key={venue.id} venue={venue} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-400 dark:text-gray-500">
+              <MapPin className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <p className="text-lg font-medium">No venues available yet</p>
+              <p className="text-sm mt-1">Venues will appear here once they are added by an admin.</p>
+            </div>
+          )}
         </div>
       </section>
-      
-      {/* Footer */}
-      <footer className="bg-gray-50 dark:bg-gray-950 border-t border-gray-200 dark:border-gray-800 py-12 text-center text-gray-500 dark:text-gray-400 text-sm transition-colors duration-200">
-         <p className="text-[11px] font-medium tracking-wide uppercase">
-            System Design by{' '}
-            <a
-              href="https://mohdhisyamudin.com"
-              target="_blank"
-              rel="noreferrer"
-              className="underline hover:text-gray-700 dark:hover:text-gray-200"
-            >
-              Mohd Hisyamudin
-            </a>{' '}
-            | Created with AI
-         </p>
-         <p className="mt-2 text-[10px] opacity-60">v{APP_VERSION} Beta</p>
-      </footer>
-    </div>
+    </PublicLayout>
   );
 };
 
