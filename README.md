@@ -1,5 +1,7 @@
 # Meeting Booking System
 
+[![Version](https://img.shields.io/badge/version-v1.0.0-2563eb.svg)](https://github.com/meistericham/meeting-booking-system) [![Status](https://img.shields.io/badge/status-MVP-f59e0b.svg)](https://github.com/meistericham/meeting-booking-system) [![License](https://img.shields.io/badge/license-MIT-16a34a.svg)](./LICENSE) [![Stack](https://img.shields.io/badge/stack-React%20%7C%20Firebase%20%7C%20Tailwind-0f766e.svg)](#stack)
+
 Responsive hall and venue booking web app built with Vite, React, Tailwind, Firebase Auth, and Firestore.
 
 Open-source project by [Mohd Hisyamudin](https://github.com/meistericham), published at [github.com/meistericham/meeting-booking-system](https://github.com/meistericham/meeting-booking-system).
