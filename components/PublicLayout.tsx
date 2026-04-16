@@ -5,6 +5,7 @@ import { APP_CONFIG } from '../config/appConfig';
 import { useAuth } from '../services/authContext';
 import { useTheme } from '../services/themeContext';
 import { UserRole } from '../types';
+import AppFooter from './AppFooter';
 
 interface PublicLayoutProps {
   children: React.ReactNode;
@@ -83,31 +84,7 @@ const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
 
       <main className="flex-1">{children}</main>
 
-      <footer className="border-t border-gray-200 bg-white py-8 transition-all duration-300 dark:border-gray-700 dark:bg-gray-900">
-        <div className="mx-auto max-w-7xl px-4 md:px-8">
-          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-            <div className="flex items-center gap-2">
-              <div className="rounded bg-brand-maroon p-1">
-                <Calendar className="h-4 w-4 text-white" />
-              </div>
-              <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                {APP_CONFIG.APP_NAME}
-              </span>
-            </div>
-            <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">
-              Built by{' '}
-              <a
-                href="https://mohdhisyamudin.com"
-                target="_blank"
-                rel="noreferrer"
-                className="underline hover:text-gray-600 dark:hover:text-gray-200"
-              >
-                Mohd Hisyamudin
-              </a>
-            </p>
-          </div>
-        </div>
-      </footer>
+      <AppFooter />
     </div>
   );
 };

@@ -25,6 +25,7 @@ export interface AppUser {
   email: string;
   displayName: string;
   role: UserRole;
+  isActive?: boolean;
   avatar?: UserAvatarPrefs;
   phoneNumber?: string;
   organization?: string;
@@ -56,6 +57,8 @@ export interface Venue {
   isActive: boolean;
   sortOrder: number;
 }
+
+export type VenueInput = Omit<Venue, 'id'>;
 
 export interface Booking {
   id: string;

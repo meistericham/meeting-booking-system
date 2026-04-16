@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
   ArrowLeft,
@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import PublicLayout from '../components/PublicLayout';
 import TimeSlotPicker from '../components/TimeSlotPicker';
-import { isSlotTaken, toTimestamp } from '../config/timeSlots';
+import { isSlotTaken, TIME_SLOTS, toTimestamp } from '../config/timeSlots';
 import { useAuth } from '../services/authContext';
 import { sendBookingSubmittedNotifications } from '../services/emailService';
 import {
@@ -35,12 +35,17 @@ const BookingPage: React.FC = () => {
   const { user } = useAuth();
   const { venueId } = useParams<{ venueId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queryVenueId = searchParams.get('venueId');
+  const directVenueId = venueId ?? queryVenueId ?? null;
 
   const [venues, setVenues] = useState<Venue[]>([]);
   const [activeBookings, setActiveBookings] = useState<Booking[]>([]);
-  const [selectedDate, setSelectedDate] = useState(getTodayString());
+  const [selectedDate, setSelectedDate] = useState(
+    searchParams.get('date') || getTodayString()
+  );
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
-  const [selectedVenueId, setSelectedVenueId] = useState(venueId ?? '');
+  const [selectedVenueId, setSelectedVenueId] = useState(directVenueId ?? '');
   const [expectedPax, setExpectedPax] = useState('');
   const [loadingVenues, setLoadingVenues] = useState(true);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
@@ -54,6 +59,24 @@ const BookingPage: React.FC = () => {
     eventType: 'meeting' as EventType,
     specialRequests: '',
   });
+
+  useEffect(() => {
+    const dateParam = searchParams.get('date');
+    const slotParam = searchParams.get('slot');
+    const prefilledVenueId = venueId ?? searchParams.get('venueId');
+
+    if (dateParam) {
+      setSelectedDate(dateParam);
+    }
+
+    if (slotParam) {
+      setSelectedSlot(TIME_SLOTS.find((slot) => slot.id === slotParam) ?? null);
+    }
+
+    if (prefilledVenueId) {
+      setSelectedVenueId(prefilledVenueId);
+    }
+  }, [searchParams, venueId]);
 
   useEffect(() => {
     if (user) {
@@ -72,8 +95,8 @@ const BookingPage: React.FC = () => {
         const activeVenues = data.filter((venue) => venue.isActive);
         setVenues(activeVenues);
 
-        if (venueId) {
-          setSelectedVenueId(venueId);
+        if (directVenueId) {
+          setSelectedVenueId(directVenueId);
         }
       } catch {
         setVenues([]);
@@ -83,7 +106,7 @@ const BookingPage: React.FC = () => {
     };
 
     void loadVenues();
-  }, [venueId]);
+  }, [directVenueId]);
 
   useEffect(() => {
     const loadActiveBookings = async () => {
@@ -109,27 +132,29 @@ const BookingPage: React.FC = () => {
   }, [selectedDate]);
 
   const selectedPax = Number(expectedPax);
-  const hasValidSchedule =
-    Boolean(selectedDate) && Boolean(selectedSlot) && Number.isFinite(selectedPax) && selectedPax > 0;
+  const hasSelectedSchedule = Boolean(selectedDate) && Boolean(selectedSlot);
+  const hasValidPax = Number.isFinite(selectedPax) && selectedPax > 0;
+  const hasValidSchedule = hasSelectedSchedule && hasValidPax;
 
   const getVenueBookings = (currentVenueId: string) =>
     activeBookings.filter((booking) => booking.venueId === currentVenueId);
 
-  const isVenueAvailable = (venue: Venue) => {
-    if (!selectedSlot || !hasValidSchedule) {
-      return false;
-    }
-
-    if (selectedPax > venue.capacity) {
+  const isVenueSlotFree = (venue: Venue) => {
+    if (!selectedSlot || !selectedDate) {
       return false;
     }
 
     return !isSlotTaken(selectedSlot, selectedDate, getVenueBookings(venue.id));
   };
 
+  const doesVenueFitPax = (venue: Venue) => !hasValidPax || selectedPax <= venue.capacity;
+
+  const isVenueAvailable = (venue: Venue) =>
+    hasSelectedSchedule && doesVenueFitPax(venue) && isVenueSlotFree(venue);
+
   const directVenue = useMemo(
-    () => venues.find((venue) => venue.id === venueId) ?? null,
-    [venueId, venues]
+    () => venues.find((venue) => venue.id === directVenueId) ?? null,
+    [directVenueId, venues]
   );
 
   const selectedVenue = useMemo(
@@ -146,10 +171,14 @@ const BookingPage: React.FC = () => {
   }, [activeBookings, hasValidSchedule, selectedPax, selectedSlot, selectedDate, venues]);
 
   useEffect(() => {
-    if (!venueId && selectedVenueId && !availableVenues.some((venue) => venue.id === selectedVenueId)) {
+    if (
+      !directVenueId &&
+      selectedVenueId &&
+      !availableVenues.some((venue) => venue.id === selectedVenueId)
+    ) {
       setSelectedVenueId('');
     }
-  }, [availableVenues, selectedVenueId, venueId]);
+  }, [availableVenues, directVenueId, selectedVenueId]);
 
   const handleFieldChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -176,7 +205,7 @@ const BookingPage: React.FC = () => {
     }
 
     if (!selectedVenue) {
-      return venueId
+      return directVenueId
         ? 'This venue is not available for the selected schedule.'
         : 'Please choose one of the available venues.';
     }
@@ -263,11 +292,11 @@ const BookingPage: React.FC = () => {
       <section className="bg-gray-50 py-10 dark:bg-gray-950 md:py-14">
         <div className="mx-auto max-w-7xl px-4 md:px-8">
           <Link
-            to={venueId ? '/venue' : '/dashboard'}
+            to={directVenueId ? '/venue' : '/dashboard'}
             className="inline-flex items-center gap-2 text-sm font-medium text-gray-500 transition-colors hover:text-brand-maroon dark:text-gray-400 dark:hover:text-red-300"
           >
             <ArrowLeft className="h-4 w-4" />
-            {venueId ? 'Back to venue details' : 'Back to dashboard'}
+            {directVenueId ? 'Back to venue details' : 'Back to dashboard'}
           </Link>
 
           <div className="mt-5 grid gap-8 lg:grid-cols-[0.78fr_1.22fr]">
@@ -361,7 +390,7 @@ const BookingPage: React.FC = () => {
                         setSelectedSlot(slot);
                         setValidationError('');
                       }}
-                      existingBookings={venueId ? directVenueBookings : []}
+                      existingBookings={directVenueId ? directVenueBookings : []}
                       disabled={loadingAvailability}
                     />
                   </div>
@@ -375,10 +404,10 @@ const BookingPage: React.FC = () => {
             >
               <div className="border-b border-gray-200 pb-6 dark:border-gray-800">
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  {venueId ? 'Selected venue availability' : 'Available venues'}
+                  {directVenueId ? 'Selected venue availability' : 'Available venues'}
                 </h2>
                 <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                  {venueId
+                  {directVenueId
                     ? 'This direct booking view only proceeds if the selected venue is free for your chosen schedule.'
                     : 'Only venues that match your schedule and pax appear below.'}
                 </p>
@@ -389,8 +418,18 @@ const BookingPage: React.FC = () => {
                   <div className="flex justify-center py-14">
                     <Loader2 className="h-8 w-8 animate-spin text-brand-maroon" />
                   </div>
-                ) : venueId && directVenue ? (
-                  isVenueAvailable(directVenue) ? (
+                ) : directVenueId && directVenue ? (
+                  !hasSelectedSchedule ? (
+                    <div className="rounded-3xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center dark:border-gray-700 dark:bg-gray-950/40">
+                      <Users className="mx-auto h-12 w-12 text-gray-300 dark:text-gray-600" />
+                      <p className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">
+                        Choose your schedule first
+                      </p>
+                      <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                        Select a date and time slot to check whether this room is still available.
+                      </p>
+                    </div>
+                  ) : isVenueAvailable(directVenue) ? (
                     <div className="rounded-3xl border border-brand-maroon/20 bg-brand-maroon/5 p-5 dark:border-brand-maroon/30 dark:bg-brand-maroon/10">
                       <div className="flex items-start justify-between gap-4">
                         <div>
@@ -413,6 +452,11 @@ const BookingPage: React.FC = () => {
                           </span>
                         ))}
                       </div>
+                      {!hasValidPax && (
+                        <p className="mt-4 text-sm text-gray-600 dark:text-gray-300">
+                          Enter your expected pax to confirm this room fits your attendance.
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <div className="rounded-3xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center dark:border-gray-700 dark:bg-gray-950/40">

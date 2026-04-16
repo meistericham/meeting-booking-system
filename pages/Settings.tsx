@@ -1,256 +1,365 @@
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '../services/authContext';
-import { User, Lock, Save, AlertCircle, CheckCircle2, Palette, RefreshCw } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import {
+  AlertCircle,
+  CheckCircle2,
+  LogOut,
+  Palette,
+  RefreshCw,
+  Save,
+  ShieldCheck,
+  User,
+} from 'lucide-react';
+import DashboardShell from '../components/DashboardShell';
 import Avatar from '../components/ui/Avatar';
-import { DEFAULT_AVATAR_COLORS, colorFromString } from '../utils/avatar';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
+import { getDashboardNav } from '../config/dashboardNavigation';
+import { useAuth } from '../services/authContext';
+import { UserRole } from '../types';
+import { colorFromString, DEFAULT_AVATAR_COLORS } from '../utils/avatar';
 
-
-const Settings = () => {
-  const { user, updateProfile, changePassword } = useAuth();
-  
-  // Profile Form State
+const Settings: React.FC = () => {
+  const { user, logout, updateProfile, changePassword } = useAuth();
+  const location = useLocation();
   const [displayName, setDisplayName] = useState(user?.displayName || '');
+  const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || '');
+  const [organization, setOrganization] = useState(user?.organization || '');
   const [avatarBgColor, setAvatarBgColor] = useState(
     user?.avatar?.bgColor || colorFromString(user?.email || user?.displayName || 'user')
   );
   const [profileLoading, setProfileLoading] = useState(false);
-  const [profileMsg, setProfileMsg] = useState<{type: 'success' | 'error', text: string} | null>(null);
+  const [profileMsg, setProfileMsg] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
 
-  // Password Form State
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [passLoading, setPassLoading] = useState(false);
-  const [passMsg, setPassMsg] = useState<{type: 'success' | 'error', text: string} | null>(null);
+  const [passMsg, setPassMsg] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
 
+  useEffect(() => {
+    setDisplayName(user?.displayName || '');
+    setPhoneNumber(user?.phoneNumber || '');
+    setOrganization(user?.organization || '');
+    setAvatarBgColor(
+      user?.avatar?.bgColor || colorFromString(user?.email || user?.displayName || 'user')
+    );
+  }, [user]);
 
-  const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleUpdateProfile = async (event: React.FormEvent) => {
+    event.preventDefault();
     setProfileLoading(true);
     setProfileMsg(null);
 
     try {
-      if (!displayName.trim()) throw new Error("Display name cannot be empty.");
+      if (!displayName.trim()) {
+        throw new Error('Display name cannot be empty.');
+      }
 
-      await updateProfile({ displayName, avatarBgColor });
-      setProfileMsg({ type: 'success', text: "Profile updated successfully." });
-    } catch (err: any) {
-      setProfileMsg({ type: 'error', text: err.message });
+      await updateProfile({
+        displayName,
+        phoneNumber,
+        organization,
+        avatarBgColor,
+      });
+
+      setProfileMsg({ type: 'success', text: 'Profile updated successfully.' });
+    } catch (error) {
+      setProfileMsg({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Unable to update profile.',
+      });
     } finally {
       setProfileLoading(false);
     }
   };
 
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleChangePassword = async (event: React.FormEvent) => {
+    event.preventDefault();
     setPassLoading(true);
     setPassMsg(null);
 
     try {
-      if (!currentPass) throw new Error("Current password is required.");
-      if (newPass.length < 6) throw new Error("New password must be at least 6 characters.");
-      if (newPass !== confirmPass) throw new Error("New passwords do not match.");
+      if (!currentPass) {
+        throw new Error('Current password is required.');
+      }
+
+      if (newPass.length < 6) {
+        throw new Error('New password must be at least 6 characters.');
+      }
+
+      if (newPass !== confirmPass) {
+        throw new Error('New passwords do not match.');
+      }
 
       await changePassword(currentPass, newPass);
-      setPassMsg({ type: 'success', text: "Password changed successfully." });
+      setPassMsg({ type: 'success', text: 'Password changed successfully.' });
       setCurrentPass('');
       setNewPass('');
       setConfirmPass('');
-    } catch (err: any) {
-      setPassMsg({ type: 'error', text: err.message });
+    } catch (error) {
+      setPassMsg({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Unable to change password.',
+      });
     } finally {
       setPassLoading(false);
     }
   };
 
+  const resetAvatarColor = () => {
+    setAvatarBgColor(colorFromString(user?.email || user?.displayName || 'user'));
+  };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Account Settings</h1>
-        <p className="text-gray-500 dark:text-gray-400">Manage your profile details and security.</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        
-        {/* Navigation / Sidebar (Visual only for now) */}
-        <div className="space-y-2">
-          <button className="w-full flex items-center gap-3 px-4 py-3 bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 rounded-xl shadow-sm border border-indigo-100 dark:border-indigo-900/30 font-medium">
-            <User className="w-5 h-5" /> General
-          </button>
-          <div className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-colors cursor-not-allowed opacity-60">
-            <Lock className="w-5 h-5" /> Security
+    <DashboardShell
+      badge="Account Settings"
+      title="User Profile"
+      description="Update your personal details, keep your booking contact info accurate, and manage account security."
+      userLabel={user?.displayName || user?.email}
+      navItems={getDashboardNav(user?.role ?? UserRole.USER, location.pathname)}
+      headerActions={
+        <button
+          type="button"
+          onClick={() => void logout()}
+          className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:border-red-300 hover:text-red-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200 dark:hover:border-red-400 dark:hover:text-red-200"
+        >
+          <LogOut className="h-4 w-4" />
+          Sign out
+        </button>
+      }
+    >
+      <div className="grid gap-8 xl:grid-cols-[0.95fr_1.05fr]">
+        <Card className="rounded-3xl shadow-sm">
+          <div className="border-b border-gray-200 pb-6 dark:border-gray-800">
+            <div className="inline-flex items-center gap-2 rounded-full bg-brand-maroon/8 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-maroon dark:bg-brand-maroon/20 dark:text-red-200">
+              <User className="h-3.5 w-3.5" />
+              Profile Information
+            </div>
+            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+              These details are reused in booking requests and can be updated anytime.
+            </p>
           </div>
-        </div>
 
-        {/* Forms Area */}
-        <div className="md:col-span-2 space-y-8">
-          
-          {/* Profile Section */}
-          <Card>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-              <User className="w-5 h-5 text-gray-400" /> Profile Information
-            </h2>
-
-            <form onSubmit={handleUpdateProfile} className="space-y-5">
-              {/* Avatar */}
-              <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-4 bg-gray-50/50 dark:bg-gray-900/30">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <Avatar user={user} bgColor={avatarBgColor} size="lg" />
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">Avatar</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Default: 2-letter initials from your name (or email). Choose a colour anytime.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => setAvatarBgColor(colorFromString(user?.email || user?.displayName || 'user'))}
-                      icon={<RefreshCw className="w-4 h-4" />}
-                    >
-                      Reset
-                    </Button>
+          <form onSubmit={handleUpdateProfile} className="mt-6 space-y-5">
+            <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-800 dark:bg-gray-950/40">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <Avatar user={user} bgColor={avatarBgColor} size="lg" />
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                      Avatar
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Choose a colour for your initials avatar.
+                    </p>
                   </div>
                 </div>
 
-                <div className="mt-4">
-                  <p className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-2 inline-flex items-center gap-2">
-                    <Palette className="w-4 h-4" /> Choose colour
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {DEFAULT_AVATAR_COLORS.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => setAvatarBgColor(c)}
-                        className={`w-8 h-8 rounded-full border transition-all ${avatarBgColor === c ? 'ring-2 ring-yellow-400 border-white/0' : 'border-white/20 hover:ring-2 hover:ring-white/20'}`}
-                        style={{ backgroundColor: c }}
-                        aria-label={`Select colour ${c}`}
-                        title={c}
-                      />
-                    ))}
-                  </div>
-                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={resetAvatarColor}
+                  icon={<RefreshCw className="h-4 w-4" />}
+                >
+                  Reset
+                </Button>
               </div>
 
-              {profileMsg && (
-                <div className={`p-4 rounded-lg flex items-center gap-2 text-sm ${
-                  profileMsg.type === 'success' ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-                }`}>
-                  {profileMsg.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+              <div className="mt-4">
+                <p className="mb-2 inline-flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-gray-300">
+                  <Palette className="h-4 w-4" />
+                  Choose colour
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {DEFAULT_AVATAR_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setAvatarBgColor(color)}
+                      className={`h-8 w-8 rounded-full border transition-all ${
+                        avatarBgColor === color
+                          ? 'ring-2 ring-brand-maroon ring-offset-2 dark:ring-red-300 dark:ring-offset-gray-900'
+                          : 'hover:ring-2 hover:ring-gray-300 dark:hover:ring-gray-700'
+                      }`}
+                      style={{ backgroundColor: color }}
+                      aria-label={`Select colour ${color}`}
+                      title={color}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {profileMsg && (
+              <div
+                className={`rounded-2xl px-4 py-3 text-sm ${
+                  profileMsg.type === 'success'
+                    ? 'border border-green-200 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-900/10 dark:text-green-300'
+                    : 'border border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-900/10 dark:text-red-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {profileMsg.type === 'success' ? (
+                    <CheckCircle2 className="h-4 w-4" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4" />
+                  )}
                   {profileMsg.text}
                 </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email Address</label>
-                <input 
-                  type="email" 
-                  disabled
-                  value={user?.email || ''} 
-                  className="w-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-lg p-2.5 cursor-not-allowed"
-                />
-                <p className="mt-1 text-xs text-gray-400">Email cannot be changed.</p>
               </div>
+            )}
 
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Email Address
+              </label>
+              <input
+                type="email"
+                disabled
+                value={user?.email || ''}
+                className="w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400"
+              />
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Display Name</label>
-                <input 
-                  type="text" 
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Display Name
+                </label>
+                <input
+                  type="text"
                   value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full border border-gray-300 bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white rounded-lg p-2.5 focus:ring-2 focus:ring-yellow-400 focus:border-indigo-500"
+                  onChange={(event) => setDisplayName(event.target.value)}
+                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none transition focus:border-brand-maroon focus:ring-2 focus:ring-brand-maroon/20 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
                 />
               </div>
-
-              <div className="pt-2 flex justify-end">
-                <Button 
-                  type="submit" 
-                  isLoading={profileLoading}
-                  icon={<Save className="w-4 h-4" />}
-                >
-                  Save Changes
-                </Button>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Phone Number
+                </label>
+                <input
+                  type="text"
+                  value={phoneNumber}
+                  onChange={(event) => setPhoneNumber(event.target.value)}
+                  placeholder="+60 12-345 6789"
+                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none transition focus:border-brand-maroon focus:ring-2 focus:ring-brand-maroon/20 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                />
               </div>
-            </form>
-          </Card>
+            </div>
 
-          {/* Security Section */}
-          <Card>
-             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-              <Lock className="w-5 h-5 text-gray-400" /> Change Password
-            </h2>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Organization
+              </label>
+              <input
+                type="text"
+                value={organization}
+                onChange={(event) => setOrganization(event.target.value)}
+                placeholder="Your team or organization"
+                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none transition focus:border-brand-maroon focus:ring-2 focus:ring-brand-maroon/20 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+              />
+            </div>
 
-            <form onSubmit={handleChangePassword} className="space-y-4">
-              {passMsg && (
-                <div className={`p-4 rounded-lg flex items-center gap-2 text-sm ${
-                  passMsg.type === 'success' ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-                }`}>
-                  {passMsg.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+            <Button
+              type="submit"
+              isLoading={profileLoading}
+              icon={<Save className="h-4 w-4" />}
+              className="rounded-xl bg-brand-maroon hover:bg-[#74161c]"
+            >
+              Save profile
+            </Button>
+          </form>
+        </Card>
+
+        <Card className="rounded-3xl shadow-sm">
+          <div className="border-b border-gray-200 pb-6 dark:border-gray-800">
+            <div className="inline-flex items-center gap-2 rounded-full bg-brand-maroon/8 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-maroon dark:bg-brand-maroon/20 dark:text-red-200">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Security
+            </div>
+            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+              Change your password to keep your account secure.
+            </p>
+          </div>
+
+          <form onSubmit={handleChangePassword} className="mt-6 space-y-5">
+            {passMsg && (
+              <div
+                className={`rounded-2xl px-4 py-3 text-sm ${
+                  passMsg.type === 'success'
+                    ? 'border border-green-200 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-900/10 dark:text-green-300'
+                    : 'border border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-900/10 dark:text-red-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {passMsg.type === 'success' ? (
+                    <CheckCircle2 className="h-4 w-4" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4" />
+                  )}
                   {passMsg.text}
                 </div>
-              )}
+              </div>
+            )}
 
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Current Password
+              </label>
+              <input
+                type="password"
+                value={currentPass}
+                onChange={(event) => setCurrentPass(event.target.value)}
+                placeholder="••••••••"
+                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none transition focus:border-brand-maroon focus:ring-2 focus:ring-brand-maroon/20 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+              />
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Current Password
-                    {/* default password hint removed for production */}
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  New Password
                 </label>
-                <input 
-                  type="password" 
-                  value={currentPass}
-                  onChange={(e) => setCurrentPass(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full border border-gray-300 bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white rounded-lg p-2.5 focus:ring-2 focus:ring-yellow-400 focus:border-indigo-500"
+                <input
+                  type="password"
+                  value={newPass}
+                  onChange={(event) => setNewPass(event.target.value)}
+                  placeholder="Minimum 6 characters"
+                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none transition focus:border-brand-maroon focus:ring-2 focus:ring-brand-maroon/20 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
                 />
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">New Password</label>
-                  <input 
-                    type="password" 
-                    value={newPass}
-                    onChange={(e) => setNewPass(e.target.value)}
-                    placeholder="Min. 6 characters"
-                    className="w-full border border-gray-300 bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white rounded-lg p-2.5 focus:ring-2 focus:ring-yellow-400 focus:border-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirm Password</label>
-                  <input 
-                    type="password" 
-                    value={confirmPass}
-                    onChange={(e) => setConfirmPass(e.target.value)}
-                    placeholder="Min. 6 characters"
-                    className="w-full border border-gray-300 bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white rounded-lg p-2.5 focus:ring-2 focus:ring-yellow-400 focus:border-indigo-500"
-                  />
-                </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  value={confirmPass}
+                  onChange={(event) => setConfirmPass(event.target.value)}
+                  placeholder="Repeat the new password"
+                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none transition focus:border-brand-maroon focus:ring-2 focus:ring-brand-maroon/20 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                />
               </div>
+            </div>
 
-              <div className="pt-2 flex justify-end">
-                <Button 
-                  type="submit" 
-                  variant="primary"
-                  className="bg-gray-900 dark:bg-gray-700 hover:bg-gray-800 dark:hover:bg-gray-600"
-                  isLoading={passLoading}
-                >
-                  Update Password
-                </Button>
-              </div>
-            </form>
-          </Card>
-
-        </div>
+            <Button
+              type="submit"
+              isLoading={passLoading}
+              className="rounded-xl bg-gray-900 hover:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600"
+            >
+              Update password
+            </Button>
+          </form>
+        </Card>
       </div>
-    </div>
+    </DashboardShell>
   );
 };
 

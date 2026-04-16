@@ -13,13 +13,14 @@ import {
   updatePassword as firebaseUpdatePassword,
   updateProfile as firebaseUpdateProfile,
 } from 'firebase/auth';
-import { doc, getDoc, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
+import { doc, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { AppUser, SignupInput } from '../types';
 import {
   fetchApprovedEmailInviteByEmail,
   normalizeInviteEmail,
 } from './inviteService';
+import { fetchUserById } from './userService';
 
 interface AuthContextType {
   user: AppUser | null;
@@ -42,20 +43,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
-const loadUserProfile = async (uid: string): Promise<AppUser | null> => {
-  const userDocRef = doc(db, 'users', uid);
-  const snapshot = await getDoc(userDocRef);
-
-  if (!snapshot.exists()) {
-    return null;
-  }
-
-  return {
-    uid,
-    ...(snapshot.data() as Omit<AppUser, 'uid'>),
-  };
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,12 +56,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        const userProfile = await loadUserProfile(firebaseUser.uid);
+        const userProfile = await fetchUserById(firebaseUser.uid);
 
         if (!userProfile) {
           await firebaseSignOut(auth);
           setUser(null);
           setError('Account is not provisioned for this application.');
+          return;
+        }
+
+        if (userProfile.isActive === false) {
+          await firebaseSignOut(auth);
+          setUser(null);
+          setError('Your account has been deactivated. Please contact the administrator.');
           return;
         }
 
@@ -99,11 +93,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await setPersistence(auth, browserLocalPersistence);
       const credential = await signInWithEmailAndPassword(auth, normalizeEmail(email), password);
-      const userProfile = await loadUserProfile(credential.user.uid);
+      const userProfile = await fetchUserById(credential.user.uid);
 
       if (!userProfile) {
         await firebaseSignOut(auth);
         throw new Error('Account is not provisioned for this application.');
+      }
+
+      if (userProfile.isActive === false) {
+        await firebaseSignOut(auth);
+        throw new Error('Your account has been deactivated. Please contact the administrator.');
       }
     } catch (err: any) {
       const message =
@@ -159,6 +158,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: normalizedEmail,
         displayName: data.displayName.trim(),
         role: invite.role,
+        isActive: true,
         phoneNumber: data.phoneNumber?.trim() || '',
         organization: data.organization?.trim() || '',
         createdAt: timestamp,

@@ -10,6 +10,11 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import UserDashboard from './pages/UserDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminBookingsPage from './pages/AdminBookingsPage';
+import AdminUsersPage from './pages/AdminUsersPage';
+import AdminRoomsPage from './pages/AdminRoomsPage';
+import CalendarPage from './pages/CalendarPage';
+import Settings from './pages/Settings';
 import { AuthProvider, useAuth } from './services/authContext';
 import { ThemeProvider } from './services/themeContext';
 import { UserRole } from './types';
@@ -58,6 +63,22 @@ export default function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route
+                path="/calendar"
+                element={
+                  <ProtectedRoute allowedRoles={[UserRole.USER, UserRole.ADMIN]}>
+                    <CalendarPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute allowedRoles={[UserRole.USER, UserRole.ADMIN]}>
+                    <Settings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/dashboard"
                 element={
                   <ProtectedRoute allowedRoles={[UserRole.USER]}>
@@ -94,6 +115,30 @@ export default function App() {
                 element={
                   <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
                     <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/bookings"
+                element={
+                  <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                    <AdminBookingsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/users"
+                element={
+                  <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                    <AdminUsersPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/rooms"
+                element={
+                  <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                    <AdminRoomsPage />
                   </ProtectedRoute>
                 }
               />

@@ -5,11 +5,18 @@ import {
   getDoc,
   getDocs,
   query,
+  setDoc,
   updateDoc,
   where,
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Booking, BookingStatus, CreateBookingInput, Venue } from '../types';
+import {
+  Booking,
+  BookingStatus,
+  CreateBookingInput,
+  Venue,
+  VenueInput,
+} from '../types';
 
 const ACTIVE_BOOKING_STATUSES = [BookingStatus.APPROVED, BookingStatus.PENDING];
 
@@ -137,6 +144,29 @@ export const fetchBookingById = async (bookingId: string): Promise<Booking | nul
   }
 
   return mapBooking(snapshot);
+};
+
+export const fetchBookingsByDateRange = async (
+  startDate: string,
+  endDate: string
+): Promise<Booking[]> => {
+  const bookingsRef = collection(db, 'bookings');
+  const bookingsQuery = query(
+    bookingsRef,
+    where('date', '>=', startDate),
+    where('date', '<=', endDate)
+  );
+  const snapshot = await getDocs(bookingsQuery);
+
+  return snapshot.docs
+    .map(mapBooking)
+    .sort((a, b) => {
+      if (a.date !== b.date) {
+        return a.date.localeCompare(b.date);
+      }
+
+      return a.startTimestamp - b.startTimestamp;
+    });
 };
 
 export const fetchActiveBookingsByDate = async (dateStr: string): Promise<Booking[]> => {
@@ -286,4 +316,45 @@ export const cancelBooking = async (bookingId: string, userId: string): Promise<
     cancelledAt: Date.now(),
     cancelledBy: userId,
   });
+};
+
+const sanitizeVenueInput = (input: VenueInput): VenueInput => {
+  const imageUrl = input.imageUrl?.trim();
+
+  return {
+    name: input.name.trim(),
+    description: input.description.trim(),
+    capacity: Math.max(1, Number(input.capacity) || 1),
+    amenities: Array.isArray(input.amenities)
+      ? input.amenities.map((item) => item.trim()).filter(Boolean)
+      : [],
+    ...(imageUrl ? { imageUrl } : {}),
+    isActive: Boolean(input.isActive),
+    sortOrder: Number.isFinite(Number(input.sortOrder))
+      ? Number(input.sortOrder)
+      : Number.MAX_SAFE_INTEGER,
+  };
+};
+
+export const saveVenue = async (
+  input: VenueInput,
+  venueId?: string
+): Promise<string> => {
+  const payload = sanitizeVenueInput(input);
+
+  if (venueId) {
+    await setDoc(doc(db, 'venues', venueId), payload);
+    return venueId;
+  }
+
+  const venuesRef = collection(db, 'venues');
+  const docRef = await addDoc(venuesRef, payload);
+  return docRef.id;
+};
+
+export const updateVenueActiveState = async (
+  venueId: string,
+  isActive: boolean
+): Promise<void> => {
+  await updateDoc(doc(db, 'venues', venueId), { isActive });
 };
