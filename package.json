@@ -10,6 +10,11 @@
     "url": "git+https://github.com/meistericham/meeting-booking-system.git"
   },
   "homepage": "https://github.com/meistericham/meeting-booking-system",
+  "packageManager": "npm@10.9.8",
+  "engines": {
+    "node": ">=22 <25",
+    "npm": "10.x"
+  },
   "bugs": {
     "url": "https://github.com/meistericham/meeting-booking-system/issues"
   },
