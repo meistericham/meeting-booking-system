@@ -278,6 +278,58 @@ const buildInviteTokens = (payload: InvitePayload['invite'], invitedByName: stri
   invitedByName,
 });
 
+const toSafeErrorMessage = (error: unknown) => {
+  if (!(error instanceof Error) || !error.message.trim()) {
+    return 'Unable to send email.';
+  }
+
+  const message = error.message.trim();
+  const lower = message.toLowerCase();
+
+  if (lower.includes('firebase admin credentials are not configured')) {
+    return 'Server email setup is incomplete: Firebase Admin credentials are missing.';
+  }
+
+  if (
+    lower.includes('invalid_grant') ||
+    lower.includes('private key') ||
+    lower.includes('decoding jwt') ||
+    lower.includes('credential')
+  ) {
+    return 'Server email setup is invalid: Firebase Admin credentials could not be used.';
+  }
+
+  if (
+    lower.includes('eauth') ||
+    lower.includes('invalid login') ||
+    lower.includes('authentication unsuccessful') ||
+    lower.includes('535') ||
+    lower.includes('534')
+  ) {
+    return 'SMTP authentication failed. Check SMTP username, password, and sender settings.';
+  }
+
+  if (
+    lower.includes('econn') ||
+    lower.includes('esocket') ||
+    lower.includes('etimedout') ||
+    lower.includes('enotfound') ||
+    lower.includes('certificate')
+  ) {
+    return 'SMTP connection failed. Check SMTP host, port, security mode, and provider access rules.';
+  }
+
+  if (
+    lower.includes('permission_denied') ||
+    lower.includes('insufficient permission') ||
+    lower.includes('firestore')
+  ) {
+    return 'Server could not read Firestore data needed for email delivery.';
+  }
+
+  return message;
+};
+
 export const handleEmailRequest = async ({
   method,
   rawBody,
@@ -473,10 +525,14 @@ export const handleEmailRequest = async ({
       body: { ok: true },
     };
   } catch (error) {
-    console.error('Email handler failed:', error);
+    console.error('Email handler failed:', {
+      event: body.event,
+      callerUid: caller.uid,
+      error,
+    });
     return {
       status: 500,
-      body: { ok: false, message: 'Unable to send email.' },
+      body: { ok: false, message: toSafeErrorMessage(error) },
     };
   }
 };
