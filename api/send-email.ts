@@ -1,4 +1,4 @@
-import { handleEmailRequest } from '../server/emailHandler';
+import { handleEmailRequest } from './_lib/emailHandler';
 
 export default async function handler(req: any, res: any) {
   try {
