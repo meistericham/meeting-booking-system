@@ -6,15 +6,24 @@ import {
   COMMUNICATION_SETTINGS_DOC_ID,
   renderTemplate,
 } from '../config/communications';
-import {
-  BookingStatus,
-  CommunicationSettings,
-  EmailTemplateKey,
-  UserRole,
-} from '../types';
+import type { CommunicationSettings, EmailTemplateKey } from '../types';
 import type { FirebaseAdminEnv } from './firebaseAdmin';
 import { getFirestoreDocument } from './firestoreAdmin';
 import { authenticateServerRequest } from './requestAuth';
+
+const BOOKING_STATUS = {
+  PENDING: 'pending',
+  APPROVED: 'approved',
+  REJECTED: 'rejected',
+  CANCELLED: 'cancelled',
+} as const;
+
+const USER_ROLE = {
+  USER: 'user',
+  ADMIN: 'admin',
+} as const;
+
+type BookingStatus = (typeof BOOKING_STATUS)[keyof typeof BOOKING_STATUS];
 
 type EmailEnv = FirebaseAdminEnv & {
   EMAIL_ENABLED?: string;
@@ -156,11 +165,11 @@ Reference: ${booking.id}
 
 const statusLabel = (status: BookingStatus) => {
   switch (status) {
-    case BookingStatus.APPROVED:
+    case BOOKING_STATUS.APPROVED:
       return 'approved';
-    case BookingStatus.REJECTED:
+    case BOOKING_STATUS.REJECTED:
       return 'rejected';
-    case BookingStatus.CANCELLED:
+    case BOOKING_STATUS.CANCELLED:
       return 'cancelled';
     default:
       return status;
@@ -321,7 +330,7 @@ export const handleEmailRequest = async ({
     const settings = await loadCommunicationSettings(env);
 
     if (body.event === 'invite') {
-      if (caller.role !== UserRole.ADMIN) {
+      if (caller.role !== USER_ROLE.ADMIN) {
         return {
           status: 403,
           body: { ok: false, message: 'Only admins may send invite emails.' },
@@ -398,8 +407,8 @@ export const handleEmailRequest = async ({
       };
     }
 
-    if (booking.status === BookingStatus.CANCELLED) {
-      if (caller.uid !== booking.userId && caller.role !== UserRole.ADMIN) {
+    if (booking.status === BOOKING_STATUS.CANCELLED) {
+      if (caller.uid !== booking.userId && caller.role !== USER_ROLE.ADMIN) {
         return {
           status: 403,
           body: {
@@ -422,7 +431,7 @@ export const handleEmailRequest = async ({
       };
     }
 
-    if (caller.role !== UserRole.ADMIN) {
+    if (caller.role !== USER_ROLE.ADMIN) {
       return {
         status: 403,
         body: {
@@ -433,9 +442,9 @@ export const handleEmailRequest = async ({
     }
 
     const templateKey =
-      booking.status === BookingStatus.APPROVED
+      booking.status === BOOKING_STATUS.APPROVED
         ? 'booking_approved'
-        : booking.status === BookingStatus.REJECTED
+        : booking.status === BOOKING_STATUS.REJECTED
           ? 'booking_rejected'
           : null;
 

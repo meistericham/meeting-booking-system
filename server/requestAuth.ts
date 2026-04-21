@@ -1,7 +1,13 @@
 import type { IncomingHttpHeaders } from 'node:http';
 import { getFirebaseAdminAuth, type FirebaseAdminEnv } from './firebaseAdmin';
 import { getFirestoreDocument } from './firestoreAdmin';
-import { UserRole } from '../types';
+
+const USER_ROLE = {
+  USER: 'user',
+  ADMIN: 'admin',
+} as const;
+
+type UserRole = (typeof USER_ROLE)[keyof typeof USER_ROLE];
 
 export type ServerAuthenticatedUser = {
   uid: string;
@@ -50,10 +56,10 @@ export const authenticateServerRequest = async (
     throw new Error('Authenticated user is not provisioned for this application.');
   }
   const role =
-    raw.role === UserRole.ADMIN
-      ? UserRole.ADMIN
-      : raw.role === UserRole.USER
-        ? UserRole.USER
+    raw.role === USER_ROLE.ADMIN
+      ? USER_ROLE.ADMIN
+      : raw.role === USER_ROLE.USER
+        ? USER_ROLE.USER
         : null;
 
   if (!role) {

@@ -1,5 +1,5 @@
 import { APP_CONFIG } from './appConfig';
-import { CommunicationSettings, EmailTemplateKey } from '../types';
+import type { CommunicationSettings, EmailTemplateKey } from '../types';
 
 export const COMMUNICATION_SETTINGS_DOC_ID = 'communications';
 
