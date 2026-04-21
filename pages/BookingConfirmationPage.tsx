@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { CalendarDays, CheckCircle2, Clock3, Loader2, Mail, Phone } from 'lucide-react';
+import { Link, useLocation, useParams } from 'react-router-dom';
+import { AlertCircle, CalendarDays, CheckCircle2, Clock3, Loader2, Mail, Phone } from 'lucide-react';
 import PublicLayout from '../components/PublicLayout';
 import StatusBadge from '../components/StatusBadge';
 import { useAuth } from '../services/authContext';
 import { fetchBookingById } from '../services/dataService';
-import { Booking } from '../types';
+import { Booking, UserRole } from '../types';
 
 const formatDate = (value: string) =>
   new Date(`${value}T00:00:00`).toLocaleDateString('en-MY', {
@@ -18,9 +18,14 @@ const formatDate = (value: string) =>
 const BookingConfirmationPage: React.FC = () => {
   const { user } = useAuth();
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const emailWarning =
+    typeof (location.state as { emailWarning?: string } | null)?.emailWarning === 'string'
+      ? (location.state as { emailWarning?: string }).emailWarning
+      : '';
 
   useEffect(() => {
     const loadBooking = async () => {
@@ -48,6 +53,9 @@ const BookingConfirmationPage: React.FC = () => {
     void loadBooking();
   }, [id, user]);
 
+  const homePath = user?.role === UserRole.ADMIN ? '/admin' : '/dashboard';
+  const canModerate = user?.role === UserRole.ADMIN;
+
   return (
     <PublicLayout>
       <section className="bg-gray-50 py-12 dark:bg-gray-950 md:py-16">
@@ -66,15 +74,24 @@ const BookingConfirmationPage: React.FC = () => {
               </p>
               <div className="mt-6 flex justify-center">
                 <Link
-                  to="/book"
+                  to="/calendar"
                   className="rounded-xl bg-brand-maroon px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#74161c]"
                 >
-                  Create a new booking
+                  Open calendar hub
                 </Link>
               </div>
             </div>
           ) : (
             <div className="space-y-6">
+              {emailWarning && (
+                <div className="rounded-3xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-300">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                    <span>{emailWarning}</span>
+                  </div>
+                </div>
+              )}
+
               <div className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm dark:border-gray-800 dark:bg-gray-900">
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <div>
@@ -86,8 +103,9 @@ const BookingConfirmationPage: React.FC = () => {
                       Booking confirmation
                     </h1>
                     <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-300">
-                      Your booking request has been recorded under your account and is now
-                      waiting for admin review.
+                      {canModerate
+                        ? 'Your booking request has been recorded. You can review and approve it from the admin bookings console when ready.'
+                        : 'Your booking request has been recorded under your account and is now waiting for admin review.'}
                     </p>
                   </div>
                   <StatusBadge status={booking.status} className="self-start" />
@@ -199,13 +217,21 @@ const BookingConfirmationPage: React.FC = () => {
 
               <div className="flex flex-wrap gap-3">
                 <Link
-                  to="/dashboard"
+                  to={homePath}
                   className="rounded-xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 transition-colors hover:border-brand-maroon hover:text-brand-maroon dark:border-gray-700 dark:text-gray-200 dark:hover:border-red-300 dark:hover:text-red-200"
                 >
-                  Back to dashboard
+                  {canModerate ? 'Back to admin console' : 'Back to dashboard'}
                 </Link>
+                {canModerate && booking && (
+                  <Link
+                    to={`/admin/bookings?date=${booking.date}&venueId=${booking.venueId}&q=${encodeURIComponent(booking.guestEmail)}`}
+                    className="rounded-xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 transition-colors hover:border-brand-maroon hover:text-brand-maroon dark:border-gray-700 dark:text-gray-200 dark:hover:border-red-300 dark:hover:text-red-200"
+                  >
+                    Review in bookings
+                  </Link>
+                )}
                 <Link
-                  to="/book"
+                  to="/calendar"
                   className="rounded-xl bg-brand-maroon px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#74161c]"
                 >
                   Book another venue

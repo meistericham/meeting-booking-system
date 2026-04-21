@@ -18,7 +18,7 @@ import StatusBadge from '../components/StatusBadge';
 import SummaryCard from '../components/SummaryCard';
 import { getUserDashboardNav } from '../config/dashboardNavigation';
 import { useAuth } from '../services/authContext';
-import { sendBookingStatusEmail } from '../services/emailService';
+import { getEmailDeliveryWarning, sendBookingStatusEmail } from '../services/emailService';
 import { cancelBooking, fetchBookingsByUser } from '../services/dataService';
 import { Booking, BookingStatus } from '../types';
 
@@ -35,6 +35,8 @@ const UserDashboard: React.FC = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [warning, setWarning] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | BookingStatus>('all');
   const [actionBookingId, setActionBookingId] = useState<string | null>(null);
 
@@ -81,6 +83,8 @@ const UserDashboard: React.FC = () => {
 
     setActionBookingId(booking.id);
     setError('');
+    setNotice('');
+    setWarning('');
 
     try {
       await cancelBooking(booking.id, user.uid);
@@ -97,17 +101,27 @@ const UserDashboard: React.FC = () => {
         )
       );
 
-      void sendBookingStatusEmail({
-        id: booking.id,
-        guestName: booking.guestName,
-        guestEmail: booking.guestEmail,
-        venueName: booking.venueName,
-        date: booking.date,
-        startTime: booking.startTime,
-        endTime: booking.endTime,
-        eventTitle: booking.eventTitle,
-        status: BookingStatus.CANCELLED,
-      }).catch(() => undefined);
+      try {
+        await sendBookingStatusEmail({
+          id: booking.id,
+          guestName: booking.guestName,
+          guestEmail: booking.guestEmail,
+          venueName: booking.venueName,
+          date: booking.date,
+          startTime: booking.startTime,
+          endTime: booking.endTime,
+          eventTitle: booking.eventTitle,
+          status: BookingStatus.CANCELLED,
+        });
+        setNotice('Booking cancelled successfully.');
+      } catch (emailError) {
+        setWarning(
+          getEmailDeliveryWarning(
+            emailError,
+            'Booking was cancelled, but the cancellation email could not be sent.'
+          )
+        );
+      }
     } catch (cancelError) {
       setError(
         cancelError instanceof Error
@@ -129,11 +143,11 @@ const UserDashboard: React.FC = () => {
       headerActions={
         <>
           <Link
-            to="/book"
+            to="/calendar"
             className="inline-flex items-center gap-2 rounded-xl bg-brand-maroon px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#74161c]"
           >
             <CheckCircle2 className="h-4 w-4" />
-            Book a venue
+            Open calendar hub
           </Link>
           <button
             type="button"
@@ -228,14 +242,14 @@ const UserDashboard: React.FC = () => {
                 to="/calendar"
                 className="inline-flex items-center justify-between rounded-2xl border border-gray-200 px-4 py-4 text-sm font-medium text-gray-700 transition-colors hover:border-brand-maroon hover:text-brand-maroon dark:border-gray-700 dark:text-gray-200 dark:hover:border-red-300 dark:hover:text-red-200"
               >
-                <span>Open shared calendar</span>
+                <span>Open calendar hub</span>
                 <CalendarDays className="h-4 w-4" />
               </Link>
               <Link
-                to="/book"
+                to="/calendar"
                 className="inline-flex items-center justify-between rounded-2xl border border-gray-200 px-4 py-4 text-sm font-medium text-gray-700 transition-colors hover:border-brand-maroon hover:text-brand-maroon dark:border-gray-700 dark:text-gray-200 dark:hover:border-red-300 dark:hover:text-red-200"
               >
-                <span>Start a new booking</span>
+                <span>Book from calendar hub</span>
                 <CheckCircle2 className="h-4 w-4" />
               </Link>
               <Link
@@ -293,10 +307,18 @@ const UserDashboard: React.FC = () => {
             })}
           </div>
 
-          {error && (
-            <div className="mt-6 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/10 dark:text-red-300">
+          {(error || warning || notice) && (
+            <div
+              className={`mt-6 flex items-start gap-3 rounded-2xl px-4 py-3 text-sm ${
+                error
+                  ? 'border border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-900/10 dark:text-red-300'
+                  : warning
+                    ? 'border border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-300'
+                    : 'border border-green-200 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-900/10 dark:text-green-300'
+              }`}
+            >
               <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-              <span>{error}</span>
+              <span>{error || warning || notice}</span>
             </div>
           )}
 

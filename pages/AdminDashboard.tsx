@@ -165,10 +165,10 @@ const AdminDashboard: React.FC = () => {
               >
                 <CalendarDays className="h-5 w-5 text-brand-maroon dark:text-red-300" />
                 <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">
-                  Shared Calendar
+                  Calendar Hub
                 </h3>
                 <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                  View month availability across rooms and drill into a selected date.
+                  Use the calendar hub to inspect day status, room load, and booking pressure.
                 </p>
               </Link>
 

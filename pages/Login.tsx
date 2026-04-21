@@ -108,7 +108,8 @@ const Login: React.FC = () => {
               </h1>
               <p className="mt-6 text-base leading-7 text-white/80">
                 Public visitors can browse venues, but invited users must sign in before they
-                can request a time slot. Admins use the same login to manage approvals.
+                can open the calendar hub and send a booking request. Admins use the same
+                login to manage approvals.
               </p>
             </div>
 

@@ -12,7 +12,7 @@ import DashboardShell from '../components/DashboardShell';
 import StatusBadge from '../components/StatusBadge';
 import { getAdminDashboardNav } from '../config/dashboardNavigation';
 import { useAuth } from '../services/authContext';
-import { sendBookingStatusEmail } from '../services/emailService';
+import { getEmailDeliveryWarning, sendBookingStatusEmail } from '../services/emailService';
 import {
   fetchBookings,
   fetchVenues,
@@ -50,9 +50,11 @@ const AdminBookingsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [warning, setWarning] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | BookingStatus>(
     (searchParams.get('status') as 'all' | BookingStatus | null) ?? BookingStatus.PENDING
   );
+  const focusBookingId = searchParams.get('bookingId');
   const [roomFilter, setRoomFilter] = useState(searchParams.get('venueId') ?? 'all');
   const [searchTerm, setSearchTerm] = useState(searchParams.get('q') ?? '');
   const [dateFilter, setDateFilter] = useState(searchParams.get('date') ?? '');
@@ -87,6 +89,7 @@ const AdminBookingsPage: React.FC = () => {
     setStatusFilter(
       (searchParams.get('status') as 'all' | BookingStatus | null) ?? BookingStatus.PENDING
     );
+    setExpandedBookingId(searchParams.get('bookingId'));
     setRoomFilter(searchParams.get('venueId') ?? 'all');
     setSearchTerm(searchParams.get('q') ?? '');
     setDateFilter(searchParams.get('date') ?? '');
@@ -128,6 +131,7 @@ const AdminBookingsPage: React.FC = () => {
     setActionBookingId(booking.id);
     setError('');
     setNotice('');
+    setWarning('');
 
     try {
       await updateBookingStatus(booking.id, status, user.uid);
@@ -144,19 +148,27 @@ const AdminBookingsPage: React.FC = () => {
         )
       );
 
-      void sendBookingStatusEmail({
-        id: booking.id,
-        guestName: booking.guestName,
-        guestEmail: booking.guestEmail,
-        venueName: booking.venueName,
-        date: booking.date,
-        startTime: booking.startTime,
-        endTime: booking.endTime,
-        eventTitle: booking.eventTitle,
-        status,
-      }).catch(() => undefined);
-
-      setNotice(`Booking ${status} successfully.`);
+      try {
+        await sendBookingStatusEmail({
+          id: booking.id,
+          guestName: booking.guestName,
+          guestEmail: booking.guestEmail,
+          venueName: booking.venueName,
+          date: booking.date,
+          startTime: booking.startTime,
+          endTime: booking.endTime,
+          eventTitle: booking.eventTitle,
+          status,
+        });
+        setNotice(`Booking ${status} successfully.`);
+      } catch (emailError) {
+        setWarning(
+          getEmailDeliveryWarning(
+            emailError,
+            `Booking ${status} successfully, but the status email could not be sent.`
+          )
+        );
+      }
     } catch (updateError) {
       setError(
         updateError instanceof Error
@@ -196,15 +208,17 @@ const AdminBookingsPage: React.FC = () => {
         </>
       }
     >
-      {(error || notice) && (
+      {(error || warning || notice) && (
         <div
           className={`mb-6 rounded-2xl px-4 py-3 text-sm ${
             error
               ? 'border border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-900/10 dark:text-red-300'
+              : warning
+                ? 'border border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-300'
               : 'border border-green-200 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-900/10 dark:text-green-300'
           }`}
         >
-          {error || notice}
+          {error || warning || notice}
         </div>
       )}
 
@@ -284,10 +298,11 @@ const AdminBookingsPage: React.FC = () => {
                 {filteredBookings.map((booking) => {
                   const isUpdating = actionBookingId === booking.id;
                   const isExpanded = expandedBookingId === booking.id;
+                  const isFocused = focusBookingId === booking.id;
 
                   return (
                     <React.Fragment key={booking.id}>
-                      <tr>
+                      <tr className={isFocused ? 'bg-brand-maroon/5 dark:bg-brand-maroon/10' : ''}>
                         <td className="py-4">
                           <div className="font-medium text-gray-900 dark:text-white">
                             {booking.guestName}

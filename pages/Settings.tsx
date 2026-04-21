@@ -14,10 +14,28 @@ import DashboardShell from '../components/DashboardShell';
 import Avatar from '../components/ui/Avatar';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
+import {
+  buildDefaultCommunicationSettings,
+  EMAIL_TEMPLATE_LABELS,
+  EMAIL_TEMPLATE_PLACEHOLDERS,
+  findUnknownPlaceholders,
+} from '../config/communications';
 import { getDashboardNav } from '../config/dashboardNavigation';
 import { useAuth } from '../services/authContext';
-import { UserRole } from '../types';
+import {
+  fetchCommunicationSettings,
+  resetCommunicationTemplate,
+  saveCommunicationTemplate,
+} from '../services/communicationSettingsService';
+import { CommunicationSettings, EmailTemplateKey, UserRole } from '../types';
 import { colorFromString, DEFAULT_AVATAR_COLORS } from '../utils/avatar';
+
+const EMAIL_TEMPLATE_KEYS: EmailTemplateKey[] = [
+  'invite',
+  'booking_pending',
+  'booking_approved',
+  'booking_rejected',
+];
 
 const Settings: React.FC = () => {
   const { user, logout, updateProfile, changePassword } = useAuth();
@@ -42,6 +60,16 @@ const Settings: React.FC = () => {
     type: 'success' | 'error';
     text: string;
   } | null>(null);
+  const [communicationTemplates, setCommunicationTemplates] = useState<
+    CommunicationSettings['templates']
+  >(buildDefaultCommunicationSettings().templates);
+  const [commLoading, setCommLoading] = useState(false);
+  const [commBusyKey, setCommBusyKey] = useState<EmailTemplateKey | null>(null);
+  const [commBusyAction, setCommBusyAction] = useState<'save' | 'reset' | null>(null);
+  const [commMsg, setCommMsg] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
 
   useEffect(() => {
     setDisplayName(user?.displayName || '');
@@ -51,6 +79,34 @@ const Settings: React.FC = () => {
       user?.avatar?.bgColor || colorFromString(user?.email || user?.displayName || 'user')
     );
   }, [user]);
+
+  useEffect(() => {
+    const loadCommunicationSettings = async () => {
+      if (user?.role !== UserRole.ADMIN) {
+        return;
+      }
+
+      setCommLoading(true);
+      setCommMsg(null);
+
+      try {
+        const settings = await fetchCommunicationSettings();
+        setCommunicationTemplates(settings.templates);
+      } catch (error) {
+        setCommMsg({
+          type: 'error',
+          text:
+            error instanceof Error
+              ? error.message
+              : 'Unable to load communication settings.',
+        });
+      } finally {
+        setCommLoading(false);
+      }
+    };
+
+    void loadCommunicationSettings();
+  }, [user?.role]);
 
   const handleUpdateProfile = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -117,6 +173,127 @@ const Settings: React.FC = () => {
     setAvatarBgColor(colorFromString(user?.email || user?.displayName || 'user'));
   };
 
+  const handleTemplateFieldChange = (
+    key: EmailTemplateKey,
+    field: 'subject' | 'body',
+    value: string
+  ) => {
+    setCommunicationTemplates((current) => ({
+      ...current,
+      [key]: {
+        ...current[key],
+        [field]: value,
+      },
+    }));
+    setCommMsg(null);
+  };
+
+  const handleSaveTemplate = async (key: EmailTemplateKey) => {
+    if (!user) {
+      return;
+    }
+
+    const template = communicationTemplates[key];
+    const unknownPlaceholders = [
+      ...findUnknownPlaceholders(key, template.subject),
+      ...findUnknownPlaceholders(key, template.body),
+    ];
+
+    if (!template.subject.trim() || !template.body.trim()) {
+      setCommMsg({
+        type: 'error',
+        text: `${EMAIL_TEMPLATE_LABELS[key]} template requires both subject and body.`,
+      });
+      return;
+    }
+
+    if (unknownPlaceholders.length > 0) {
+      setCommMsg({
+        type: 'error',
+        text: `Unknown placeholders in ${EMAIL_TEMPLATE_LABELS[key]}: ${Array.from(
+          new Set(unknownPlaceholders)
+        ).join(', ')}`,
+      });
+      return;
+    }
+
+    setCommBusyKey(key);
+    setCommBusyAction('save');
+    setCommMsg(null);
+
+    try {
+      await saveCommunicationTemplate(
+        key,
+        {
+          subject: template.subject,
+          body: template.body,
+        },
+        user.uid
+      );
+      setCommunicationTemplates((current) => ({
+        ...current,
+        [key]: {
+          ...current[key],
+          updatedAt: Date.now(),
+          updatedBy: user.uid,
+        },
+      }));
+      setCommMsg({
+        type: 'success',
+        text: `${EMAIL_TEMPLATE_LABELS[key]} template saved.`,
+      });
+    } catch (error) {
+      setCommMsg({
+        type: 'error',
+        text:
+          error instanceof Error
+            ? error.message
+            : `Unable to save ${EMAIL_TEMPLATE_LABELS[key]} template.`,
+      });
+    } finally {
+      setCommBusyKey(null);
+      setCommBusyAction(null);
+    }
+  };
+
+  const handleResetTemplate = async (key: EmailTemplateKey) => {
+    if (!user) {
+      return;
+    }
+
+    setCommBusyKey(key);
+    setCommBusyAction('reset');
+    setCommMsg(null);
+
+    try {
+      await resetCommunicationTemplate(key, user.uid);
+      const defaults = buildDefaultCommunicationSettings();
+      setCommunicationTemplates((current) => ({
+        ...current,
+        [key]: {
+          ...defaults.templates[key],
+          updatedAt: Date.now(),
+          updatedBy: user.uid,
+        },
+      }));
+      setCommMsg({
+        type: 'success',
+        text: `${EMAIL_TEMPLATE_LABELS[key]} template reset to default.`,
+      });
+    } catch (error) {
+      setCommMsg({
+        type: 'error',
+        text:
+          error instanceof Error
+            ? error.message
+            : `Unable to reset ${EMAIL_TEMPLATE_LABELS[key]} template.`,
+      });
+    } finally {
+      setCommBusyKey(null);
+      setCommBusyAction(null);
+    }
+  };
+
   return (
     <DashboardShell
       badge="Account Settings"
@@ -135,8 +312,9 @@ const Settings: React.FC = () => {
         </button>
       }
     >
-      <div className="grid gap-8 xl:grid-cols-[0.95fr_1.05fr]">
-        <Card className="rounded-3xl shadow-sm">
+      <>
+        <div className="grid gap-8 xl:grid-cols-[0.95fr_1.05fr]">
+          <Card className="rounded-3xl shadow-sm">
           <div className="border-b border-gray-200 pb-6 dark:border-gray-800">
             <div className="inline-flex items-center gap-2 rounded-full bg-brand-maroon/8 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-maroon dark:bg-brand-maroon/20 dark:text-red-200">
               <User className="h-3.5 w-3.5" />
@@ -276,9 +454,9 @@ const Settings: React.FC = () => {
               Save profile
             </Button>
           </form>
-        </Card>
+          </Card>
 
-        <Card className="rounded-3xl shadow-sm">
+          <Card className="rounded-3xl shadow-sm">
           <div className="border-b border-gray-200 pb-6 dark:border-gray-800">
             <div className="inline-flex items-center gap-2 rounded-full bg-brand-maroon/8 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-maroon dark:bg-brand-maroon/20 dark:text-red-200">
               <ShieldCheck className="h-3.5 w-3.5" />
@@ -357,8 +535,131 @@ const Settings: React.FC = () => {
               Update password
             </Button>
           </form>
-        </Card>
-      </div>
+          </Card>
+        </div>
+
+        {user?.role === UserRole.ADMIN && (
+          <Card className="mt-8 rounded-3xl shadow-sm">
+            <div className="border-b border-gray-200 pb-6 dark:border-gray-800">
+              <div className="inline-flex items-center gap-2 rounded-full bg-brand-maroon/8 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-maroon dark:bg-brand-maroon/20 dark:text-red-200">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Communications
+              </div>
+              <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+                Customize invitation and booking status emails. Unknown placeholders are rejected and blank fields fall back to system defaults.
+              </p>
+            </div>
+
+            {commMsg && (
+              <div
+                className={`mt-6 rounded-2xl px-4 py-3 text-sm ${
+                  commMsg.type === 'success'
+                    ? 'border border-green-200 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-900/10 dark:text-green-300'
+                    : 'border border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-900/10 dark:text-red-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {commMsg.type === 'success' ? (
+                    <CheckCircle2 className="h-4 w-4" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4" />
+                  )}
+                  {commMsg.text}
+                </div>
+              </div>
+            )}
+
+            {commLoading ? (
+              <div className="mt-6 flex justify-center py-16">
+                <RefreshCw className="h-8 w-8 animate-spin text-brand-maroon" />
+              </div>
+            ) : (
+              <div className="mt-6 space-y-6">
+                {EMAIL_TEMPLATE_KEYS.map((key) => {
+                  const template = communicationTemplates[key];
+                  const isSaving = commBusyKey === key && commBusyAction === 'save';
+                  const isResetting = commBusyKey === key && commBusyAction === 'reset';
+
+                  return (
+                    <div
+                      key={key}
+                      className="rounded-3xl border border-gray-200 p-5 dark:border-gray-800"
+                    >
+                      <div className="flex flex-col gap-3 border-b border-gray-200 pb-5 dark:border-gray-800 md:flex-row md:items-start md:justify-between">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                            {EMAIL_TEMPLATE_LABELS[key]}
+                          </h3>
+                          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                            Supported placeholders: {EMAIL_TEMPLATE_PLACEHOLDERS[key].map((token) => `{{${token}}}`).join(', ')}
+                          </p>
+                        </div>
+                        {template.updatedAt && (
+                          <div className="text-xs uppercase tracking-[0.18em] text-gray-400">
+                            Updated {new Date(template.updatedAt).toLocaleString('en-MY')}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-5 space-y-5">
+                        <div>
+                          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Subject
+                          </label>
+                          <input
+                            type="text"
+                            value={template.subject}
+                            onChange={(event) =>
+                              handleTemplateFieldChange(key, 'subject', event.target.value)
+                            }
+                            className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none transition focus:border-brand-maroon focus:ring-2 focus:ring-brand-maroon/20 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Body
+                          </label>
+                          <textarea
+                            rows={8}
+                            value={template.body}
+                            onChange={(event) =>
+                              handleTemplateFieldChange(key, 'body', event.target.value)
+                            }
+                            className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none transition focus:border-brand-maroon focus:ring-2 focus:ring-brand-maroon/20 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                          />
+                        </div>
+
+                        <div className="flex flex-wrap gap-3">
+                          <Button
+                            type="button"
+                            isLoading={isSaving}
+                            icon={<Save className="h-4 w-4" />}
+                            onClick={() => void handleSaveTemplate(key)}
+                            className="rounded-xl bg-brand-maroon hover:bg-[#74161c]"
+                          >
+                            Save template
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            isLoading={isResetting}
+                            icon={<RefreshCw className="h-4 w-4" />}
+                            onClick={() => void handleResetTemplate(key)}
+                            className="rounded-xl"
+                          >
+                            Reset to default
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+        )}
+      </>
     </DashboardShell>
   );
 };

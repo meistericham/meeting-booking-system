@@ -168,7 +168,7 @@ const AdminRoomsPage: React.FC = () => {
     <DashboardShell
       badge="Admin Rooms"
       title="Room Management"
-      description="Manage the room catalogue used by the landing page, booking flow, and shared availability calendar."
+      description="Manage the room catalogue used by the landing page, calendar hub, and booking requests."
       userLabel={user?.displayName || user?.email}
       navItems={getAdminDashboardNav(location.pathname)}
       headerActions={

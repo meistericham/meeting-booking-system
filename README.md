@@ -75,6 +75,8 @@ VITE_FIREBASE_STORAGE_BUCKET=
 VITE_FIREBASE_MESSAGING_SENDER_ID=
 VITE_FIREBASE_APP_ID=
 VITE_FIREBASE_MEASUREMENT_ID=
+VITE_EMAIL_ENABLED=false
+VITE_EMAIL_API_URL=/api/send-email
 ```
 
 Optional email backend config for `api/send-email.ts`:
@@ -88,11 +90,17 @@ SMTP_USER=
 SMTP_PASS=
 SMTP_FROM=
 ADMIN_NOTIFICATION_EMAILS=
+FIREBASE_ADMIN_PROJECT_ID=
+FIREBASE_ADMIN_CLIENT_EMAIL=
+FIREBASE_ADMIN_PRIVATE_KEY=
 ```
 
 Notes:
 - Keep SMTP variables out of the frontend env namespace.
+- `VITE_EMAIL_ENABLED` must be `true` before the frontend will call the email API.
+- `npm run dev` now exposes `/api/send-email` through the local Vite middleware for development.
 - `ADMIN_NOTIFICATION_EMAILS` accepts a comma-separated list.
+- `FIREBASE_ADMIN_PRIVATE_KEY` should preserve newlines, or use escaped `\n` and let the server normalize it.
 - If `EMAIL_ENABLED` is not `true`, the email endpoint safely no-ops.
 
 ## Firebase Setup Checklist

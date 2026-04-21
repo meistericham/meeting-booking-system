@@ -125,17 +125,17 @@ const VenueDetailsPage: React.FC = () => {
 
                       <div className="mt-8 flex flex-wrap gap-3">
                         <Link
-                          to={`/book/${venue.id}`}
+                          to={`/calendar?venueId=${venue.id}`}
                           className="inline-flex items-center gap-2 rounded-xl bg-brand-maroon px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#74161c]"
                         >
-                          Book this venue
+                          Open in calendar
                           <ArrowRight className="h-4 w-4" />
                         </Link>
                         <Link
-                          to="/book"
+                          to="/calendar"
                           className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 transition-colors hover:border-brand-maroon hover:text-brand-maroon dark:border-gray-700 dark:text-gray-200 dark:hover:border-red-300 dark:hover:text-red-200"
                         >
-                          Compare in booking form
+                          Open calendar hub
                         </Link>
                       </div>
                     </div>

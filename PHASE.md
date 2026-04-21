@@ -8,25 +8,25 @@
 - [ ] Remove non-MVP modules (super admin, printing, archive, legacy docs)
 
 ## Phase 1 — MVP (public booking flow)
-- [ ] Responsive landing page for the venue
-- [ ] Venue details page (key information)
-- [ ] Booking request form
-  - [ ] Date selection
-  - [ ] Time slot selection
-  - [ ] Form validation (required fields, correct formats)
-  - [ ] Prevent invalid/overlapping slot requests
-- [ ] Booking confirmation page
+- [x] Responsive landing page for the venue
+- [x] Venue details page (key information)
+- [x] Booking request form
+  - [x] Date selection
+  - [x] Time slot selection
+  - [x] Form validation (required fields, correct formats)
+  - [x] Prevent invalid/overlapping slot requests
+- [x] Booking confirmation page
 
 ## Phase 2 — MVP (admin)
-- [ ] Admin login page
-- [ ] Admin dashboard to manage bookings
-  - [ ] List bookings
-  - [ ] Update status: pending / approved / rejected
-  - [ ] Basic filters + search
+- [x] Admin login page
+- [x] Admin dashboard to manage bookings
+  - [x] List bookings
+  - [x] Update status: pending / approved / rejected
+  - [x] Basic filters + search
 
 ## Phase 3 — Polish
 - [ ] Clean UX (spacing, typography, states)
-- [ ] Empty states + loading + error handling
+- [x] Empty states + loading + error handling
 - [ ] Mobile-first QA
 
 ## Notes

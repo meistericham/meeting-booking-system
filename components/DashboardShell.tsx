@@ -1,7 +1,10 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
+  Bell,
   Calendar,
+  ChevronsLeft,
+  ChevronsRight,
   type LucideIcon,
   Menu,
   Moon,
@@ -9,8 +12,12 @@ import {
   X,
 } from 'lucide-react';
 import { APP_CONFIG } from '../config/appConfig';
+import { subscribeToUnreadNotificationCount } from '../services/notificationService';
+import { useAuth } from '../services/authContext';
 import { useTheme } from '../services/themeContext';
 import AppFooter from './AppFooter';
+
+const SIDEBAR_COLLAPSE_STORAGE_KEY = 'meeting-booking-system.sidebar-collapsed';
 
 export interface DashboardNavItem {
   label: string;
@@ -41,17 +48,54 @@ const DashboardShell: React.FC<DashboardShellProps> = ({
   summary,
   children,
 }) => {
+  const { user } = useAuth();
+  const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  const [unreadNotificationCount, setUnreadNotificationCount] = React.useState(0);
+  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    return window.localStorage.getItem(SIDEBAR_COLLAPSE_STORAGE_KEY) === 'true';
+  });
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.localStorage.setItem(
+      SIDEBAR_COLLAPSE_STORAGE_KEY,
+      sidebarCollapsed ? 'true' : 'false'
+    );
+  }, [sidebarCollapsed]);
+
+  React.useEffect(() => {
+    if (!user) {
+      setUnreadNotificationCount(0);
+      return;
+    }
+
+    return subscribeToUnreadNotificationCount(
+      user.uid,
+      (count) => setUnreadNotificationCount(count),
+      () => setUnreadNotificationCount(0)
+    );
+  }, [user]);
 
   const renderNavItem = (item: DashboardNavItem, mobile = false) => {
+    const collapsedDesktop = !mobile && sidebarCollapsed;
     const baseClasses = mobile
       ? `inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
           item.active
             ? 'bg-brand-maroon text-white'
             : 'bg-white text-gray-700 hover:text-brand-maroon dark:bg-gray-900 dark:text-gray-200 dark:hover:text-red-200'
         }`
-      : `flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-colors ${
+      : `flex w-full items-center rounded-2xl py-3 text-sm font-medium transition-colors ${
+          collapsedDesktop ? 'justify-center px-0' : 'gap-3 px-4'
+        } ${
           item.active
             ? 'bg-brand-maroon text-white shadow-sm'
             : 'text-gray-600 hover:bg-gray-100 hover:text-brand-maroon dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-red-200'
@@ -64,9 +108,10 @@ const DashboardShell: React.FC<DashboardShellProps> = ({
           to={item.to}
           onClick={() => setSidebarOpen(false)}
           className={baseClasses}
+          title={collapsedDesktop ? item.label : undefined}
         >
-          <item.icon className={mobile ? 'h-4 w-4' : 'h-4 w-4'} />
-          <span>{item.label}</span>
+          <item.icon className="h-4 w-4 flex-shrink-0" />
+          <span className={collapsedDesktop ? 'sr-only' : ''}>{item.label}</span>
         </Link>
       );
     }
@@ -80,9 +125,10 @@ const DashboardShell: React.FC<DashboardShellProps> = ({
           setSidebarOpen(false);
         }}
         className={baseClasses}
+        title={collapsedDesktop ? item.label : undefined}
       >
-        <item.icon className={mobile ? 'h-4 w-4' : 'h-4 w-4'} />
-        <span>{item.label}</span>
+        <item.icon className="h-4 w-4 flex-shrink-0" />
+        <span className={collapsedDesktop ? 'sr-only' : ''}>{item.label}</span>
       </button>
     );
   };
@@ -100,18 +146,18 @@ const DashboardShell: React.FC<DashboardShellProps> = ({
         <aside
           className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-gray-200 bg-white px-5 py-6 transition-transform dark:border-gray-800 dark:bg-gray-900 lg:sticky lg:top-0 lg:z-20 lg:h-screen lg:translate-x-0 ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
+          } ${sidebarCollapsed ? 'lg:w-24 lg:px-3' : 'lg:w-72'}`}
         >
           <div className="flex items-center justify-between">
             <Link
               to="/"
               onClick={() => setSidebarOpen(false)}
-              className="flex items-center gap-2.5"
+              className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-2.5'}`}
             >
               <div className="rounded-xl bg-brand-maroon p-2">
                 <Calendar className="h-5 w-5 text-white" />
               </div>
-              <div>
+              <div className={sidebarCollapsed ? 'hidden' : ''}>
                 <div className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-maroon dark:text-red-300">
                   {badge}
                 </div>
@@ -130,7 +176,23 @@ const DashboardShell: React.FC<DashboardShellProps> = ({
             </button>
           </div>
 
-          {userLabel && (
+          <button
+            type="button"
+            onClick={() => setSidebarCollapsed((current) => !current)}
+            className="mt-5 hidden items-center justify-center rounded-2xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:border-brand-maroon hover:text-brand-maroon dark:border-gray-700 dark:text-gray-200 dark:hover:border-red-300 dark:hover:text-red-200 lg:inline-flex"
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {sidebarCollapsed ? (
+              <ChevronsRight className="h-4 w-4" />
+            ) : (
+              <>
+                <ChevronsLeft className="h-4 w-4" />
+                <span className="ml-2">Collapse</span>
+              </>
+            )}
+          </button>
+
+          {userLabel && !sidebarCollapsed && (
             <div className="mt-8 rounded-3xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950">
               <div className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">
                 Signed in as
@@ -149,10 +211,15 @@ const DashboardShell: React.FC<DashboardShellProps> = ({
             <button
               type="button"
               onClick={toggleTheme}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:border-brand-maroon hover:text-brand-maroon dark:border-gray-700 dark:text-gray-200 dark:hover:border-red-300 dark:hover:text-red-200"
+              className={`flex w-full items-center justify-center rounded-2xl border border-gray-200 py-3 text-sm font-medium text-gray-700 transition-colors hover:border-brand-maroon hover:text-brand-maroon dark:border-gray-700 dark:text-gray-200 dark:hover:border-red-300 dark:hover:text-red-200 ${
+                sidebarCollapsed ? 'px-0' : 'gap-2 px-4'
+              }`}
+              title={sidebarCollapsed ? (theme === 'dark' ? 'Light mode' : 'Dark mode') : undefined}
             >
               {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+              <span className={sidebarCollapsed ? 'sr-only' : ''}>
+                {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+              </span>
             </button>
           </div>
         </aside>
@@ -183,8 +250,29 @@ const DashboardShell: React.FC<DashboardShellProps> = ({
                   </div>
                 </div>
 
-                {headerActions && (
-                  <div className="flex flex-wrap items-center gap-3">{headerActions}</div>
+                {(user || headerActions) && (
+                  <div className="flex flex-wrap items-center gap-3">
+                    {user && (
+                      <Link
+                        to="/notifications"
+                        className={`relative inline-flex items-center justify-center rounded-2xl border p-3 transition-colors ${
+                          location.pathname.startsWith('/notifications')
+                            ? 'border-brand-maroon text-brand-maroon dark:border-red-300 dark:text-red-200'
+                            : 'border-gray-200 bg-white text-gray-700 hover:border-brand-maroon hover:text-brand-maroon dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200 dark:hover:border-red-300 dark:hover:text-red-200'
+                        }`}
+                        aria-label="Open notifications"
+                        title="Notifications"
+                      >
+                        <Bell className="h-5 w-5" />
+                        {unreadNotificationCount > 0 && (
+                          <span className="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-brand-maroon px-1.5 text-[11px] font-semibold text-white dark:bg-red-300 dark:text-gray-900">
+                            {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+                          </span>
+                        )}
+                      </Link>
+                    )}
+                    {headerActions}
+                  </div>
                 )}
               </div>
 

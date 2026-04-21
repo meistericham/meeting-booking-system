@@ -44,10 +44,10 @@ const LandingPage: React.FC = () => {
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <Link
-                to="/book"
+                to="/calendar"
                 className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-brand-maroon font-semibold rounded-lg hover:bg-gray-100 transition-colors shadow-lg"
               >
-                Book Now <ArrowRight className="w-5 h-5" />
+                Open Calendar <ArrowRight className="w-5 h-5" />
               </Link>
               <Link
                 to="/venue"
@@ -74,8 +74,8 @@ const LandingPage: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
             {[
-              { icon: MapPin, title: 'Choose a Venue', desc: 'Browse our available halls and spaces to find the right fit.' },
-              { icon: Clock, title: 'Sign In & Check Availability', desc: 'Log in, choose your date and time slot, then view only the venues that are still available.' },
+              { icon: MapPin, title: 'Browse the Venue', desc: 'Review halls and spaces before you jump into the booking calendar.' },
+              { icon: Clock, title: 'Open the Calendar Hub', desc: 'Sign in, pick a date, inspect the day status, and choose your room and slot in one place.' },
               { icon: CheckCircle, title: 'Submit & Track', desc: 'Send your booking request and monitor its status from your dashboard.' },
             ].map((step, i) => (
               <div key={i} className="text-center group">

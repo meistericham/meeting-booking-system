@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { AppUser, UserRole } from '../types';
 
@@ -77,6 +77,19 @@ export const fetchUsers = async (): Promise<AppUser[]> => {
 
       return a.displayName.localeCompare(b.displayName);
     });
+};
+
+export const fetchActiveAdminUsers = async (): Promise<AppUser[]> => {
+  const usersRef = collection(db, 'users');
+  const adminsQuery = query(usersRef, where('role', '==', UserRole.ADMIN));
+  const snapshot = await getDocs(adminsQuery);
+
+  return snapshot.docs
+    .map((userDoc) => normalizeAppUser(userDoc.id, userDoc.data()))
+    .filter(
+      (user): user is AppUser =>
+        Boolean(user) && user.role === UserRole.ADMIN && user.isActive !== false
+    );
 };
 
 export const updateUserActiveState = async (

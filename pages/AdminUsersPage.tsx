@@ -13,7 +13,7 @@ import {
 import DashboardShell from '../components/DashboardShell';
 import { getAdminDashboardNav } from '../config/dashboardNavigation';
 import { useAuth } from '../services/authContext';
-import { sendInviteEmail } from '../services/emailService';
+import { getEmailDeliveryWarning, sendInviteEmail } from '../services/emailService';
 import {
   fetchApprovedEmailInvites,
   upsertApprovedEmailInvite,
@@ -43,6 +43,7 @@ const AdminUsersPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [warning, setWarning] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [inviteBusyEmail, setInviteBusyEmail] = useState<string | null>(null);
@@ -99,19 +100,28 @@ const AdminUsersPage: React.FC = () => {
     setInviteBusyEmail(email);
     setError('');
     setNotice('');
+    setWarning('');
 
     try {
       const invite = await upsertApprovedEmailInvite(email, user.uid);
       const refreshedInvites = await fetchApprovedEmailInvites();
       setInvites(refreshedInvites);
 
-      void sendInviteEmail({
-        email: invite.email,
-        inviteUrl: buildInviteUrl(invite.email),
-        invitedByName: user.displayName,
-      }).catch(() => undefined);
-
-      setNotice(`Invite queued for ${invite.email}.`);
+      try {
+        await sendInviteEmail({
+          email: invite.email,
+          inviteUrl: buildInviteUrl(invite.email),
+          invitedByName: user.displayName,
+        });
+        setNotice(`Invite email sent to ${invite.email}.`);
+      } catch (emailError) {
+        setWarning(
+          getEmailDeliveryWarning(
+            emailError,
+            `Invite was saved for ${invite.email}, but the email could not be sent.`
+          )
+        );
+      }
     } catch (inviteError) {
       setError(
         inviteError instanceof Error
@@ -143,6 +153,7 @@ const AdminUsersPage: React.FC = () => {
     setToggleBusyUserId(entry.uid);
     setError('');
     setNotice('');
+    setWarning('');
 
     try {
       const nextIsActive = entry.isActive !== false ? false : true;
@@ -201,15 +212,17 @@ const AdminUsersPage: React.FC = () => {
         </>
       }
     >
-      {(error || notice) && (
+      {(error || warning || notice) && (
         <div
           className={`mb-6 rounded-2xl px-4 py-3 text-sm ${
             error
               ? 'border border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-900/10 dark:text-red-300'
+              : warning
+                ? 'border border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-300'
               : 'border border-green-200 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-900/10 dark:text-green-300'
           }`}
         >
-          {error || notice}
+          {error || warning || notice}
         </div>
       )}
 

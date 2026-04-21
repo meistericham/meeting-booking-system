@@ -14,6 +14,7 @@ import AdminBookingsPage from './pages/AdminBookingsPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminRoomsPage from './pages/AdminRoomsPage';
 import CalendarPage from './pages/CalendarPage';
+import NotificationsPage from './pages/NotificationsPage';
 import Settings from './pages/Settings';
 import { AuthProvider, useAuth } from './services/authContext';
 import { ThemeProvider } from './services/themeContext';
@@ -71,6 +72,14 @@ export default function App() {
                 }
               />
               <Route
+                path="/notifications"
+                element={
+                  <ProtectedRoute allowedRoles={[UserRole.USER, UserRole.ADMIN]}>
+                    <NotificationsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/settings"
                 element={
                   <ProtectedRoute allowedRoles={[UserRole.USER, UserRole.ADMIN]}>
@@ -89,7 +98,7 @@ export default function App() {
               <Route
                 path="/book"
                 element={
-                  <ProtectedRoute allowedRoles={[UserRole.USER]}>
+                  <ProtectedRoute allowedRoles={[UserRole.USER, UserRole.ADMIN]}>
                     <BookingPage />
                   </ProtectedRoute>
                 }
@@ -97,7 +106,7 @@ export default function App() {
               <Route
                 path="/book/:venueId"
                 element={
-                  <ProtectedRoute allowedRoles={[UserRole.USER]}>
+                  <ProtectedRoute allowedRoles={[UserRole.USER, UserRole.ADMIN]}>
                     <BookingPage />
                   </ProtectedRoute>
                 }
@@ -105,7 +114,7 @@ export default function App() {
               <Route
                 path="/confirmation/:id"
                 element={
-                  <ProtectedRoute allowedRoles={[UserRole.USER]}>
+                  <ProtectedRoute allowedRoles={[UserRole.USER, UserRole.ADMIN]}>
                     <BookingConfirmationPage />
                   </ProtectedRoute>
                 }

@@ -47,10 +47,10 @@ const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
                 </Link>
                 {user.role === UserRole.USER && (
                   <Link
-                    to="/book"
+                    to="/calendar"
                     className="hidden rounded-lg bg-brand-maroon px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#7b171d] sm:inline-flex"
                   >
-                    Book Now
+                    Open Calendar
                   </Link>
                 )}
                 <button
@@ -71,10 +71,10 @@ const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
                   Sign In
                 </Link>
                 <Link
-                  to="/book"
+                  to="/calendar"
                   className="inline-flex rounded-lg bg-brand-maroon px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#7b171d]"
                 >
-                  Book Now
+                  Open Calendar
                 </Link>
               </>
             )}

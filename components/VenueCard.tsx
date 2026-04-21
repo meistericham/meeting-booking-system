@@ -53,10 +53,10 @@ const VenueCard: React.FC<VenueCardProps> = ({ venue }) => {
         )}
 
         <Link
-          to={`/book/${venue.id}`}
+          to={`/calendar?venueId=${venue.id}`}
           className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-maroon hover:text-[#7b171d] dark:text-red-400 dark:hover:text-red-300 transition-colors group-hover:gap-2.5"
         >
-          Check Availability <ArrowRight className="w-4 h-4 transition-all" />
+          Open in Calendar <ArrowRight className="w-4 h-4 transition-all" />
         </Link>
       </div>
     </div>

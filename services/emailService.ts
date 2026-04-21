@@ -1,4 +1,8 @@
+import { auth } from '../firebase';
 import { Booking, BookingStatus } from '../types';
+
+const EMAIL_ENABLED = import.meta.env.VITE_EMAIL_ENABLED === 'true';
+const EMAIL_API_URL = import.meta.env.VITE_EMAIL_API_URL || '/api/send-email';
 
 type EmailEventBody =
   | {
@@ -39,17 +43,56 @@ type EmailEventBody =
     };
 
 const postEmailEvent = async (body: EmailEventBody) => {
-  const response = await fetch('/api/send-email', {
+  if (!EMAIL_ENABLED) {
+    return;
+  }
+
+  if (!auth.currentUser) {
+    throw new Error('You must be signed in to send email notifications.');
+  }
+
+  const token = await auth.currentUser.getIdToken();
+
+  const response = await fetch(EMAIL_API_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(body),
   });
 
-  if (!response.ok) {
-    throw new Error('Unable to queue email notification.');
+  let responseBody: { disabled?: boolean; message?: string } | null = null;
+
+  if ((response.headers.get('content-type') || '').includes('application/json')) {
+    try {
+      responseBody = (await response.json()) as { disabled?: boolean };
+    } catch {
+      responseBody = null;
+    }
   }
+
+  if (response.status === 404) {
+    throw new Error(
+      'Email endpoint is not available. Use a deployed environment or run a local API server before enabling email notifications.'
+    );
+  }
+
+  if (!response.ok) {
+    throw new Error(responseBody?.message || 'Unable to queue email notification.');
+  }
+
+  if (responseBody?.disabled) {
+    throw new Error('Email notifications are currently disabled for this environment.');
+  }
+};
+
+export const getEmailDeliveryWarning = (error: unknown, fallbackMessage: string) => {
+  if (error instanceof Error && error.message.trim()) {
+    return `${fallbackMessage} ${error.message}`;
+  }
+
+  return fallbackMessage;
 };
 
 export const sendInviteEmail = async (invite: {

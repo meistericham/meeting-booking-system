@@ -88,11 +88,11 @@ const Signup: React.FC = () => {
                 </span>
               </div>
               <h1 className="mt-8 text-5xl font-bold leading-tight">
-                Create your account and start booking available venues.
+                Create your account and start booking from the calendar hub.
               </h1>
               <p className="mt-6 text-base leading-7 text-white/80">
                 Signup is limited to invited email addresses. Once your account is created, you
-                can browse availability, submit bookings, and track approval status.
+                can open the calendar hub, submit bookings, and track approval status.
               </p>
             </div>
 

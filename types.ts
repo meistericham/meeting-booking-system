@@ -13,6 +13,16 @@ export enum BookingStatus {
 }
 
 export type EventType = 'meeting' | 'seminar' | 'workshop' | 'reception' | 'other';
+export type CalendarDayStatus = 'open' | 'partial' | 'full';
+export type EmailTemplateKey =
+  | 'invite'
+  | 'booking_pending'
+  | 'booking_approved'
+  | 'booking_rejected';
+export type NotificationType =
+  | 'booking_pending'
+  | 'booking_approved'
+  | 'booking_rejected';
 
 // --- Interfaces ---
 
@@ -122,4 +132,27 @@ export interface TimeSlot {
   label: string;
   start: string;
   end: string;
+}
+
+export interface EmailTemplate {
+  subject: string;
+  body: string;
+  updatedAt?: number;
+  updatedBy?: string;
+}
+
+export interface CommunicationSettings {
+  templates: Record<EmailTemplateKey, EmailTemplate>;
+}
+
+export interface AppNotification {
+  id: string;
+  recipientUserId: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  link: string;
+  bookingId: string;
+  readAt: number | null;
+  createdAt: number;
 }

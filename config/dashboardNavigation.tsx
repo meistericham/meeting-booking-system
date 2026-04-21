@@ -1,6 +1,5 @@
 import {
   CalendarDays,
-  CheckCircle2,
   Home,
   LayoutDashboard,
   MapPin,
@@ -26,12 +25,6 @@ export const getUserDashboardNav = (activePath: string): DashboardNavItem[] => [
     icon: CalendarDays,
     to: '/calendar',
     active: matchesPath(activePath, '/calendar'),
-  },
-  {
-    label: 'Book Venue',
-    icon: CheckCircle2,
-    to: '/book',
-    active: matchesPath(activePath, '/book'),
   },
   {
     label: 'Settings',

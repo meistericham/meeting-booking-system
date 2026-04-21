@@ -8,15 +8,18 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import {
+  AppNotification,
   Booking,
   BookingStatus,
   CreateBookingInput,
   Venue,
   VenueInput,
 } from '../types';
+import { fetchActiveAdminUsers } from './userService';
 
 const ACTIVE_BOOKING_STATUSES = [BookingStatus.APPROVED, BookingStatus.PENDING];
 
@@ -90,6 +93,62 @@ const mapBooking = (snapshotDoc: { id: string; data: () => unknown }) =>
     id: snapshotDoc.id,
     ...(snapshotDoc.data() as Omit<Booking, 'id'>),
   }) as Booking;
+
+const buildNotificationBase = (
+  input: Omit<AppNotification, 'id'>
+): Omit<AppNotification, 'id'> => ({
+  ...input,
+  readAt: input.readAt ?? null,
+});
+
+const buildPendingNotificationForOwner = (
+  bookingId: string,
+  booking: CreateBookingInput
+) =>
+  buildNotificationBase({
+    recipientUserId: booking.userId,
+    type: 'booking_pending',
+    title: 'Booking pending review',
+    message: `${booking.eventTitle} at ${booking.venueName} is pending admin review.`,
+    link: `/confirmation/${bookingId}`,
+    bookingId,
+    readAt: null,
+    createdAt: Date.now(),
+  });
+
+const buildPendingNotificationForAdmin = (
+  bookingId: string,
+  booking: CreateBookingInput,
+  adminUid: string
+) =>
+  buildNotificationBase({
+    recipientUserId: adminUid,
+    type: 'booking_pending',
+    title: 'New booking pending review',
+    message: `${booking.guestName} submitted ${booking.eventTitle} for ${booking.venueName}.`,
+    link: `/admin/bookings?bookingId=${bookingId}`,
+    bookingId,
+    readAt: null,
+    createdAt: Date.now(),
+  });
+
+const buildDecisionNotification = (
+  booking: Booking,
+  status: BookingStatus.APPROVED | BookingStatus.REJECTED
+) =>
+  buildNotificationBase({
+    recipientUserId: booking.userId,
+    type: status === BookingStatus.APPROVED ? 'booking_approved' : 'booking_rejected',
+    title:
+      status === BookingStatus.APPROVED
+        ? 'Booking approved'
+        : 'Booking rejected',
+    message: `${booking.eventTitle} at ${booking.venueName} was ${status}.`,
+    link: `/confirmation/${booking.id}`,
+    bookingId: booking.id,
+    readAt: null,
+    createdAt: Date.now(),
+  });
 
 export const fetchVenues = async (): Promise<Venue[]> => {
   const venuesRef = collection(db, 'venues');
@@ -236,13 +295,35 @@ export const createBooking = async (booking: CreateBookingInput): Promise<string
   }
 
   const bookingsRef = collection(db, 'bookings');
-  const docRef = await addDoc(bookingsRef, {
+  const notificationsRef = collection(db, 'notifications');
+  const bookingRef = doc(bookingsRef);
+  const adminUsers = await fetchActiveAdminUsers();
+  const batch = writeBatch(db);
+  const createdAt = Date.now();
+
+  batch.set(bookingRef, {
     ...booking,
     status: BookingStatus.PENDING,
-    createdAt: Date.now(),
+    createdAt,
   });
 
-  return docRef.id;
+  const ownerNotificationRef = doc(notificationsRef);
+  batch.set(
+    ownerNotificationRef,
+    buildPendingNotificationForOwner(bookingRef.id, booking)
+  );
+
+  adminUsers.forEach((adminUser) => {
+    const adminNotificationRef = doc(notificationsRef);
+    batch.set(
+      adminNotificationRef,
+      buildPendingNotificationForAdmin(bookingRef.id, booking, adminUser.uid)
+    );
+  });
+
+  await batch.commit();
+
+  return bookingRef.id;
 };
 
 export const updateBookingStatus = async (
@@ -287,7 +368,18 @@ export const updateBookingStatus = async (
     updatePayload.adminNotes = adminNotes.trim();
   }
 
-  await updateDoc(bookingRef, updatePayload);
+  const batch = writeBatch(db);
+  batch.update(bookingRef, updatePayload);
+
+  if (status === BookingStatus.APPROVED || status === BookingStatus.REJECTED) {
+    const notificationRef = doc(collection(db, 'notifications'));
+    batch.set(
+      notificationRef,
+      buildDecisionNotification(booking, status)
+    );
+  }
+
+  await batch.commit();
 };
 
 export const cancelBooking = async (bookingId: string, userId: string): Promise<void> => {

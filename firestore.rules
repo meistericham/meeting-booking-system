@@ -9,6 +9,14 @@ service cloud.firestore {
       return /databases/$(database)/documents/users/$(request.auth.uid);
     }
 
+    function userDocPath(userId) {
+      return /databases/$(database)/documents/users/$(userId);
+    }
+
+    function bookingDocPath(bookingId) {
+      return /databases/$(database)/documents/bookings/$(bookingId);
+    }
+
     function currentUserExists() {
       return isSignedIn() && exists(currentUserDocPath());
     }
@@ -33,8 +41,34 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function userExists(userId) {
+      return exists(userDocPath(userId));
+    }
+
+    function userData(userId) {
+      return get(userDocPath(userId)).data;
+    }
+
+    function userIsActive(userId) {
+      return userExists(userId)
+        && (
+          !userData(userId).keys().hasAny(['isActive'])
+          || userData(userId).isActive == true
+        );
+    }
+
+    function userIsAdmin(userId) {
+      return userIsActive(userId) && userData(userId).role == 'admin';
+    }
+
+    function bookingAfter(bookingId) {
+      return getAfter(bookingDocPath(bookingId)).data;
+    }
+
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
+      allow read: if isOwner(userId)
+        || isAdmin()
+        || (currentUserIsActive() && resource.data.role == 'admin');
 
       allow create: if isOwner(userId)
         && request.resource.data.uid == request.auth.uid
@@ -101,11 +135,15 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /appSettings/communications {
+      allow read, write: if isAdmin();
+    }
+
     match /bookings/{bookingId} {
       allow read: if currentUserIsActive();
 
       allow create: if currentUserIsActive()
-        && currentUserData().role == 'user'
+        && currentUserData().role in ['user', 'admin']
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.guestEmail == request.auth.token.email
         && request.resource.data.status == 'pending'
@@ -186,6 +224,54 @@ service cloud.firestore {
         && request.resource.data.status in ['approved', 'rejected']
         && request.resource.data.processedBy == request.auth.uid
       );
+
+      allow delete: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if currentUserIsActive()
+        && resource.data.recipientUserId == request.auth.uid;
+
+      allow create: if currentUserIsActive()
+        && request.resource.data.keys().hasOnly([
+          'recipientUserId',
+          'type',
+          'title',
+          'message',
+          'link',
+          'bookingId',
+          'readAt',
+          'createdAt'
+        ])
+        && request.resource.data.readAt == null
+        && (
+          (
+            request.resource.data.type == 'booking_pending'
+            && bookingAfter(request.resource.data.bookingId).userId == request.auth.uid
+            && bookingAfter(request.resource.data.bookingId).status == 'pending'
+            && (
+              request.resource.data.recipientUserId == request.auth.uid
+              || userIsAdmin(request.resource.data.recipientUserId)
+            )
+          ) || (
+            isAdmin()
+            && request.resource.data.type in ['booking_approved', 'booking_rejected']
+            && bookingAfter(request.resource.data.bookingId).status in ['approved', 'rejected']
+            && bookingAfter(request.resource.data.bookingId).userId == request.resource.data.recipientUserId
+          )
+        );
+
+      allow update: if currentUserIsActive()
+        && resource.data.recipientUserId == request.auth.uid
+        && request.resource.data.recipientUserId == resource.data.recipientUserId
+        && request.resource.data.type == resource.data.type
+        && request.resource.data.title == resource.data.title
+        && request.resource.data.message == resource.data.message
+        && request.resource.data.link == resource.data.link
+        && request.resource.data.bookingId == resource.data.bookingId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.readAt is int
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readAt']);
 
       allow delete: if false;
     }

@@ -27,11 +27,14 @@ export const getMonthBounds = (monthDate: Date) => {
 
 export const buildMonthGrid = (monthDate: Date): CalendarDayCell[] => {
   const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+  const lastDay = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
   const startOffset = (firstDay.getDay() + 6) % 7;
   const gridStart = new Date(firstDay);
   gridStart.setDate(firstDay.getDate() - startOffset);
+  const totalVisibleDays = startOffset + lastDay.getDate();
+  const totalCells = Math.ceil(totalVisibleDays / 7) * 7;
 
-  return Array.from({ length: 42 }, (_, index) => {
+  return Array.from({ length: totalCells }, (_, index) => {
     const cellDate = new Date(gridStart);
     cellDate.setDate(gridStart.getDate() + index);
     return {
