@@ -63,12 +63,19 @@ const postEmailEvent = async (body: EmailEventBody) => {
   });
 
   let responseBody: { disabled?: boolean; message?: string } | null = null;
+  let responseText = '';
 
   if ((response.headers.get('content-type') || '').includes('application/json')) {
     try {
       responseBody = (await response.json()) as { disabled?: boolean };
     } catch {
       responseBody = null;
+    }
+  } else {
+    try {
+      responseText = (await response.text()).trim();
+    } catch {
+      responseText = '';
     }
   }
 
@@ -79,7 +86,11 @@ const postEmailEvent = async (body: EmailEventBody) => {
   }
 
   if (!response.ok) {
-    throw new Error(responseBody?.message || 'Unable to queue email notification.');
+    throw new Error(
+      responseBody?.message ||
+        responseText ||
+        'Unable to queue email notification.'
+    );
   }
 
   if (responseBody?.disabled) {
